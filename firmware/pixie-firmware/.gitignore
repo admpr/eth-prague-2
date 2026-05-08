@@ -1,0 +1,10 @@
+**/build/**
+obsolete/**
+
+sdkconfig.ci
+sdkconfig.old
+dependencies.lock
+
+.iterm2-project
+
+**/*.swp

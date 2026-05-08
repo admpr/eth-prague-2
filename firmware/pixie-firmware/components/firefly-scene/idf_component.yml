@@ -1,0 +1,27 @@
+## IDF Component Manager Manifest File
+
+description: "A simple Scene Graph library."
+license: "MIT"
+version: "0.0.1"
+
+dependencies:
+  idf:
+    version: ">=4.1.0"
+
+maintainers:
+  - "Richard Moore <me@ricmoo.com>"
+
+#tags:
+#  - "firefly"
+#  - "scene graph"
+
+discussion: https://github.com/firefly/component-scene/discussions
+issues: https://github.com/firefly/component-scene/issues
+repository: git@github.com:firefly/component-scene.git
+url: https://docs.firefly.app/v0/components/scene/
+
+files:
+  exclude:
+    - "**/node_modules/**/*"
+    - ".iterm2-project"
+    - "**/.gitignore"

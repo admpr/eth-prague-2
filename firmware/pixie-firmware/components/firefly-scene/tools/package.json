@@ -1,0 +1,27 @@
+{
+  "name": "firefly-scene",
+  "version": "0.0.1",
+  "description": "Image utilities for Firefly Scene.",
+  "main": "lib/index.js",
+  "scripts": {
+    "auto-build": "npm run build -- -w",
+    "build": "tsc --project tsconfig.json",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Image",
+    "Firefly Scene"
+  ],
+  "author": "Richard Moore <me@ricmoo.com>",
+  "license": "MIT",
+  "dependencies": {
+    "gifwrap": "^0.10.1",
+    "jimp": "^1.6.0"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^20.3.1",
+    "@types/pngjs": "^6.0.5",
+    "typescript": "^5.1.3"
+  }
+}

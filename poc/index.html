@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firefly EIP-7702 Authorization POC</title>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="kicker">Firefly Pixie</p>
+            <h1>EIP-7702 Authorization Signer</h1>
+          </div>
+          <button id="connectButton" class="primary" type="button">Connect Firefly</button>
+        </header>
+
+        <section class="status-grid" aria-live="polite">
+          <div>
+            <span>Device</span>
+            <strong id="deviceStatus">Not connected</strong>
+          </div>
+          <div>
+            <span>Account</span>
+            <strong id="accountAddress">-</strong>
+          </div>
+          <div>
+            <span>Chain ID</span>
+            <strong id="chainStatus">-</strong>
+          </div>
+        </section>
+
+        <form id="authForm" class="form">
+          <label>
+            <span>RPC URL</span>
+            <input
+              id="rpcUrl"
+              name="rpcUrl"
+              inputmode="url"
+              autocomplete="off"
+              placeholder="https://..."
+            />
+          </label>
+
+          <label>
+            <span>Delegate Contract</span>
+            <input
+              id="contractAddress"
+              name="contractAddress"
+              autocomplete="off"
+              placeholder="0x0000000000000000000000000000000000000000"
+            />
+          </label>
+
+          <div class="inline-fields">
+            <label>
+              <span>Nonce</span>
+              <input id="nonce" name="nonce" inputmode="numeric" autocomplete="off" placeholder="pending nonce" />
+            </label>
+            <button id="loadContextButton" class="secondary" type="button">Load RPC Context</button>
+          </div>
+
+          <button id="signButton" class="primary full" type="submit" disabled>Sign Authorization</button>
+        </form>
+
+        <section class="output-panel">
+          <div class="output-header">
+            <h2>Authorization</h2>
+            <button id="copyButton" class="ghost" type="button" disabled>Copy JSON</button>
+          </div>
+          <pre id="verificationStatus">Waiting for signature.</pre>
+          <textarea id="authorizationOutput" spellcheck="false" readonly></textarea>
+        </section>
+
+        <section class="broadcast-panel">
+          <div class="output-header">
+            <h2>Broadcast</h2>
+          </div>
+          <button id="broadcastButton" class="primary full" type="button" disabled>Broadcast Authorization</button>
+          <pre id="broadcastStatus">Generate an authorization before broadcasting.</pre>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

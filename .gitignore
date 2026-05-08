@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.vite/
+.next/
+.env*
+.env*.local
+!.env*.example
+*.log
+.DS_Store
+*.tsbuildinfo
+firmware/pixie-firmware/build/
+out/
