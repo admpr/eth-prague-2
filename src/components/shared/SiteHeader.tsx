@@ -10,7 +10,7 @@ export function SiteHeader() {
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-[0_8px_24px_-8px_hsl(263_83%_66%/0.6)]">
           <Activity className="h-4 w-4" />
         </span>
-        <span className="font-display text-lg font-semibold tracking-tight">AgentForce</span>
+        <span className="font-display text-lg font-semibold tracking-tight">Wallexa</span>
       </Link>
       <div className="flex items-center gap-2">
         <FireflyConnectionControl />

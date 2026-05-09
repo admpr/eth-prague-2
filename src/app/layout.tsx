@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AgentForce — Hire AI employees, keep your keys",
+  title: "Wallexa — Hire AI employees, keep your keys",
   description:
     "A hardware-wallet-rooted permission layer for AI agents. Delegate scoped budgets, revoke instantly.",
 };

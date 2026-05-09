@@ -9,7 +9,7 @@ export default function HomePage() {
       <Hero />
       <FeatureGrid />
       <footer className="container border-t border-border/60 py-8 text-xs text-muted-foreground">
-        AgentForce · Hackathon proof of concept · Base Sepolia only · Hardware wallet required
+        Wallexa · Hackathon proof of concept · Base Sepolia only · Hardware wallet required
       </footer>
     </main>
   );
