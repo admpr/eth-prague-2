@@ -31,12 +31,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AgentAvatar } from "@/components/workforce/AgentAvatar";
-import { useAgentPermissionTransactions } from "@/hooks/useAgentPermissionTransactions";
+import {
+  type PermissionTxStep,
+  useAgentPermissionTransactions,
+} from "@/hooks/useAgentPermissionTransactions";
 import {
   BASE_SEPOLIA_TOKEN_PRESETS,
   buildPermissionConfig,
   buildSetPermissionCalldata,
   type CallRuleDraft,
+  type LimitPeriod,
   type PermissionDraft,
   type TokenLimitDraft,
 } from "@/lib/agent-permissions";
@@ -137,9 +141,10 @@ export function HireEmployeeDialog({
   const destructiveMessage = revealedPrivateKey
     ? txState.error ?? localError
     : validationError ?? txState.error ?? localError;
+  const currentTxStepLabel = txStepLabel(txState.step);
   const avatarSeed = mode.kind === "update" ? mode.avatarSeed : draft.signer || authority;
   const submitLabel = isSubmitting
-    ? transactionLabel(txState.step)
+    ? currentTxStepLabel || "Submitting"
     : mode.kind === "create"
       ? "Hire employee"
       : "Update employee";
@@ -312,6 +317,7 @@ export function HireEmployeeDialog({
 
         {destructiveMessage ? <DestructivePanel message={destructiveMessage} /> : null}
         {explorerHref ? <ExplorerLink href={explorerHref} /> : null}
+        {currentTxStepLabel ? <TransactionStepLabel label={currentTxStepLabel} /> : null}
         {hasPendingBroadcastKey && pendingCreateBroadcastHash ? (
           <PendingBroadcastKeyWarning
             hash={pendingCreateBroadcastHash}
@@ -355,7 +361,7 @@ export function HireEmployeeDialog({
               <label className="flex items-center justify-between gap-4">
                 <span>
                   <span className="block text-sm font-medium">ETH limit</span>
-                  <span className="text-xs text-muted-foreground">Daily native token budget</span>
+                  <span className="text-xs text-muted-foreground">Native token budget</span>
                 </span>
                 <input
                   type="checkbox"
@@ -372,18 +378,22 @@ export function HireEmployeeDialog({
               </label>
 
               {draft.nativeLimitEnabled ? (
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,14rem)]">
                   <input
                     className={inputClass}
                     value={draft.nativeLimitAmount}
                     onChange={(event) => updateDraft({ nativeLimitAmount: event.target.value })}
                     placeholder="0.05"
                     inputMode="decimal"
+                    aria-label="ETH limit amount"
                     disabled={isSubmitting}
                   />
-                  <div className="flex h-10 items-center rounded-lg border border-border/70 bg-secondary/50 px-3 text-sm text-muted-foreground">
-                    ETH / day
-                  </div>
+                  <PeriodSelect
+                    value={draft.nativeLimitPeriod}
+                    onChange={(nativeLimitPeriod) => updateDraft({ nativeLimitPeriod })}
+                    disabled={isSubmitting}
+                    ariaLabel="ETH reset period"
+                  />
                 </div>
               ) : null}
             </section>
@@ -428,6 +438,41 @@ export function HireEmployeeDialog({
                   ))}
                 </div>
               )}
+            </section>
+
+            <section className="space-y-3 rounded-xl border border-border/70 bg-secondary/30 p-4">
+              <div>
+                <h3 className="text-sm font-semibold">Validity window</h3>
+                <p className="text-xs text-muted-foreground">Optionally schedule or expire access</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className={labelClass} htmlFor="valid-after">
+                    Valid after
+                  </label>
+                  <input
+                    id="valid-after"
+                    type="datetime-local"
+                    className={inputClass}
+                    value={String(draft.validAfter ?? "")}
+                    onChange={(event) => updateDraft({ validAfter: event.target.value })}
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className={labelClass} htmlFor="valid-until">
+                    Valid until
+                  </label>
+                  <input
+                    id="valid-until"
+                    type="datetime-local"
+                    className={inputClass}
+                    value={String(draft.validUntil ?? "")}
+                    onChange={(event) => updateDraft({ validUntil: event.target.value })}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
             </section>
 
             <section className="space-y-3 rounded-xl border border-border/70 bg-secondary/30 p-4">
@@ -621,8 +666,10 @@ function TokenLimitRow({
   onChange(limit: Partial<TokenLimitDraft>): void;
   onRemove(): void;
 }) {
+  const isCustom = isCustomTokenLimit(limit);
+
   return (
-    <div className="grid gap-2 rounded-lg border border-border/60 bg-secondary/30 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+    <div className="grid gap-2 rounded-lg border border-border/60 bg-secondary/30 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)_minmax(0,12rem)_auto]">
       <select
         className={selectClass}
         value={presetIndexForTokenLimit(limit)}
@@ -634,6 +681,7 @@ function TokenLimitRow({
             decimals: preset.decimals,
           });
         }}
+        aria-label="Token preset"
         disabled={disabled}
       >
         {BASE_SEPOLIA_TOKEN_PRESETS.map((preset, index) => (
@@ -648,7 +696,14 @@ function TokenLimitRow({
         onChange={(event) => onChange({ amount: event.target.value })}
         placeholder="100"
         inputMode="decimal"
+        aria-label={`${limit.symbol || "Token"} amount`}
         disabled={disabled}
+      />
+      <PeriodSelect
+        value={limit.period}
+        onChange={(period) => onChange({ period })}
+        disabled={disabled}
+        ariaLabel={`${limit.symbol || "Token"} reset period`}
       />
       <Button
         type="button"
@@ -660,6 +715,78 @@ function TokenLimitRow({
       >
         <Trash2 className="h-4 w-4" />
       </Button>
+      {isCustom ? (
+        <div className="grid gap-2 sm:col-span-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
+          <input
+            className={inputClass}
+            value={limit.token}
+            onChange={(event) => onChange({ token: event.target.value })}
+            placeholder="0x token address"
+            spellCheck={false}
+            aria-label="Custom token address"
+            disabled={disabled}
+          />
+          <input
+            type="number"
+            className={inputClass}
+            value={String(Number.isFinite(limit.decimals) ? limit.decimals : 18)}
+            min={0}
+            max={18}
+            step={1}
+            onChange={(event) =>
+              onChange({ decimals: parseTokenDecimalsInput(event.target.value) })
+            }
+            aria-label="Custom token decimals"
+            disabled={disabled}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PeriodSelect({
+  ariaLabel,
+  disabled,
+  onChange,
+  value,
+}: {
+  ariaLabel: string;
+  disabled: boolean;
+  onChange(period: LimitPeriod): void;
+  value: LimitPeriod;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,5.75rem)]">
+      <select
+        className={selectClass}
+        value={value.kind}
+        onChange={(event) => onChange(limitPeriodFromKind(event.target.value, value))}
+        aria-label={ariaLabel}
+        disabled={disabled}
+      >
+        <option value="fixed">Fixed</option>
+        <option value="hourly">Hourly</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="custom">Custom</option>
+      </select>
+      {value.kind === "custom" ? (
+        <input
+          className={inputClass}
+          value={String(value.seconds)}
+          onChange={(event) => onChange({ kind: "custom", seconds: event.target.value })}
+          placeholder="Seconds"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          aria-label={`${ariaLabel} custom seconds`}
+          disabled={disabled}
+        />
+      ) : (
+        <div className="hidden h-10 items-center rounded-lg border border-border/70 bg-secondary/30 px-3 text-sm text-muted-foreground sm:flex">
+          Reset
+        </div>
+      )}
     </div>
   );
 }
@@ -683,6 +810,7 @@ function CallRuleRow({
         onChange={(event) => onChange({ target: event.target.value })}
         placeholder="0x contract address"
         spellCheck={false}
+        aria-label="Whitelist target contract"
         disabled={disabled}
       />
       <select
@@ -694,6 +822,7 @@ function CallRuleRow({
             selector: event.target.value === "selector" ? rule.selector ?? "" : undefined,
           })
         }
+        aria-label="Whitelist mode"
         disabled={disabled}
       >
         <option value="any">Any function</option>
@@ -706,6 +835,7 @@ function CallRuleRow({
           onChange={(event) => onChange({ selector: event.target.value })}
           placeholder="0xa9059cbb"
           spellCheck={false}
+          aria-label="Function selector"
           disabled={disabled}
         />
       ) : (
@@ -777,6 +907,18 @@ function ExplorerLink({ href }: { href: string }) {
   );
 }
 
+function TransactionStepLabel({ label }: { label: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="rounded-xl border border-border/60 bg-secondary/30 px-4 py-2 text-sm text-muted-foreground"
+    >
+      {label}
+    </div>
+  );
+}
+
 function draftFromMode(mode: HireEmployeeDialogProps["mode"]): PermissionDraft {
   if (mode.kind === "update") {
     return cloneDraft(mode.draft);
@@ -797,7 +939,7 @@ function cloneDraft(draft: PermissionDraft): PermissionDraft {
   };
 }
 
-function cloneLimitPeriod(period: PermissionDraft["nativeLimitPeriod"]) {
+function cloneLimitPeriod(period: LimitPeriod): LimitPeriod {
   return period.kind === "custom" ? { ...period } : period;
 }
 
@@ -887,6 +1029,36 @@ function presetIndexForTokenLimit(limit: TokenLimitDraft): string {
   return String(index >= 0 ? index : BASE_SEPOLIA_TOKEN_PRESETS.length - 1);
 }
 
+function isCustomTokenLimit(limit: TokenLimitDraft): boolean {
+  return presetIndexForTokenLimit(limit) === String(BASE_SEPOLIA_TOKEN_PRESETS.length - 1);
+}
+
+function limitPeriodFromKind(kind: string, current: LimitPeriod): LimitPeriod {
+  switch (kind) {
+    case "fixed":
+      return { kind: "fixed" };
+    case "hourly":
+      return { kind: "hourly" };
+    case "daily":
+      return { kind: "daily" };
+    case "weekly":
+      return { kind: "weekly" };
+    case "custom":
+      return {
+        kind: "custom",
+        seconds: current.kind === "custom" ? current.seconds : "",
+      };
+    default:
+      return current;
+  }
+}
+
+function parseTokenDecimalsInput(value: string): number {
+  if (!value.trim()) return 18;
+  const decimals = Number(value);
+  return Number.isNaN(decimals) ? 18 : decimals;
+}
+
 function firstPermissionConfigError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   const normalized = message.replace(/^Cannot build permission config:\s*/i, "");
@@ -906,7 +1078,7 @@ function transactionHashFromError(error: unknown): Hex | undefined {
   return undefined;
 }
 
-function isSubmittingStep(step: string): boolean {
+function isSubmittingStep(step: PermissionTxStep): boolean {
   return (
     step === "connecting" ||
     step === "preparing" ||
@@ -915,18 +1087,24 @@ function isSubmittingStep(step: string): boolean {
   );
 }
 
-function transactionLabel(step: string): string {
+function txStepLabel(step: PermissionTxStep): string {
   switch (step) {
     case "connecting":
-      return "Connecting wallet";
+      return "Connecting hardware wallet";
     case "preparing":
       return "Preparing transaction";
     case "awaitingDevice":
-      return "Approve on device";
+      return "Approve on hardware wallet";
     case "broadcasting":
-      return "Broadcasting";
+      return "Broadcasting on Base Sepolia";
+    case "confirmed":
+      return "Confirmed";
+    case "error":
+      return "Transaction failed";
+    case "idle":
+      return "";
     default:
-      return "Submitting";
+      return "";
   }
 }
 
