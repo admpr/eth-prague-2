@@ -24,11 +24,13 @@ function baseDraft(overrides: Partial<PermissionDraft> = {}): PermissionDraft {
   return {
     signer,
     name: "Invoice assistant",
+    validityWindowEnabled: false,
     validAfter: "",
     validUntil: "",
     nativeLimitEnabled: true,
     nativeLimitAmount: "0.05",
     nativeLimitPeriod: { kind: "daily" },
+    tokenLimitsEnabled: true,
     tokenLimits: [
       {
         id: "limit-1",
@@ -202,11 +204,13 @@ test("converts employee permission snapshot into update draft", () => {
 
   assert.equal(draft.signer, signer);
   assert.equal(draft.name, "Invoice assistant");
+  assert.equal(draft.validityWindowEnabled, true);
   assert.equal(draft.validAfter, expectedDateTimeLocal(validAfter));
   assert.equal(draft.validUntil, expectedDateTimeLocal(validUntil));
   assert.equal(draft.nativeLimitEnabled, true);
   assert.equal(draft.nativeLimitAmount, "0.05");
   assert.deepEqual(draft.nativeLimitPeriod, { kind: "daily" });
+  assert.equal(draft.tokenLimitsEnabled, true);
   assert.equal(draft.tokenLimits[0]?.id, `${token}-0`);
   assert.equal(draft.tokenLimits[0]?.token, token);
   assert.equal(draft.tokenLimits[0]?.symbol, "USDC");

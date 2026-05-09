@@ -3,6 +3,7 @@
 import {
   type Dispatch,
   type FormEvent,
+  type ReactNode,
   type SetStateAction,
   useCallback,
   useEffect,
@@ -11,8 +12,11 @@ import {
 } from "react";
 import {
   AlertTriangle,
+  CalendarRange,
+  Coins,
   Copy,
   ExternalLink,
+  Info,
   KeyRound,
   Plus,
   Save,
@@ -49,7 +53,7 @@ import {
   buildEmployeeMetadataStorageKey,
   upsertEmployeeMetadata,
 } from "@/lib/employee-metadata";
-import { cn, shortAddress } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export type HireEmployeeDialogProps = {
   open: boolean;
@@ -67,6 +71,10 @@ const inputClass =
 const selectClass =
   "h-10 w-full rounded-lg border border-border/70 bg-secondary/50 px-3 text-sm text-foreground outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60";
 const labelClass = "text-xs font-medium uppercase tracking-wider text-muted-foreground";
+const sectionClass =
+  "rounded-2xl border border-border/70 bg-background/35 p-4 shadow-[inset_0_1px_0_hsl(240_6%_100%/0.04)]";
+const fieldLabelClass =
+  "text-[0.65rem] font-medium uppercase tracking-wider text-muted-foreground";
 
 export function HireEmployeeDialog({
   open,
@@ -290,10 +298,10 @@ export function HireEmployeeDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-3xl gap-5 overflow-y-auto p-6">
-        <div className="flex items-start justify-between gap-4">
+      <DialogContent className="max-h-[92vh] max-w-3xl gap-5 overflow-y-auto rounded-[1.75rem] p-0">
+        <div className="border-b border-border/70 bg-secondary/20 px-6 py-5">
           <div className="flex min-w-0 items-start gap-3">
-            <AgentAvatar seed={avatarSeed} className="h-14 w-14 shrink-0" />
+            <AgentAvatar seed={avatarSeed} className="h-16 w-16 shrink-0 ring-2 ring-primary/20" />
             <div className="min-w-0 space-y-1">
               <Badge variant={mode.kind === "create" ? "primary" : "accent"}>
                 {mode.kind === "create" ? (
@@ -303,274 +311,369 @@ export function HireEmployeeDialog({
                 )}
                 {mode.kind === "create" ? "New employee" : "Update employee"}
               </Badge>
-              <DialogTitle className="text-xl">
+              <DialogTitle className="text-2xl">
                 {mode.kind === "create" ? "Hire employee" : "Update permissions"}
               </DialogTitle>
               <DialogDescription>
                 {mode.kind === "create"
-                  ? "Create a scoped signer for this workforce member."
-                  : `Editing ${shortAddress(mode.draft.signer, 8, 6)}.`}
+                  ? "Create scoped permissions for a new workforce member."
+                  : "Tune the permissions this employee can use."}
               </DialogDescription>
             </div>
           </div>
         </div>
 
-        {destructiveMessage ? <DestructivePanel message={destructiveMessage} /> : null}
-        {explorerHref ? <ExplorerLink href={explorerHref} /> : null}
-        {currentTxStepLabel ? <TransactionStepLabel label={currentTxStepLabel} /> : null}
-        {hasPendingBroadcastKey && pendingCreateBroadcastHash ? (
-          <PendingBroadcastKeyWarning
-            hash={pendingCreateBroadcastHash}
-            onDiscard={discardGeneratedKey}
-          />
-        ) : null}
+        <div className="space-y-5 px-6 pb-6">
+          {destructiveMessage ? <DestructivePanel message={destructiveMessage} /> : null}
+          {explorerHref ? <ExplorerLink href={explorerHref} /> : null}
+          {currentTxStepLabel ? <TransactionStepLabel label={currentTxStepLabel} /> : null}
+          {hasPendingBroadcastKey && pendingCreateBroadcastHash ? (
+            <PendingBroadcastKeyWarning
+              hash={pendingCreateBroadcastHash}
+              onDiscard={discardGeneratedKey}
+            />
+          ) : null}
 
-        {revealedPrivateKey ? (
-          <PrivateKeyReveal
-            copied={copied}
-            privateKey={revealedPrivateKey}
-            onCopy={copyPrivateKey}
-            onClose={closeReveal}
-          />
-        ) : (
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <section className="grid gap-3 rounded-xl border border-border/70 bg-secondary/30 p-4 sm:grid-cols-[1fr_auto]">
-              <div className="space-y-2">
-                <label className={labelClass} htmlFor="employee-name">
-                  Agent name
-                </label>
-                <input
-                  id="employee-name"
-                  className={inputClass}
-                  value={draft.name}
-                  onChange={(event) => updateDraft({ name: event.target.value })}
-                  placeholder="Invoice assistant"
-                  autoComplete="off"
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="space-y-2 sm:w-44">
-                <span className={labelClass}>Signer</span>
-                <div className="flex h-10 items-center rounded-lg border border-border/70 bg-secondary/50 px-3 font-mono text-xs text-muted-foreground">
-                  {draft.signer ? shortAddress(draft.signer, 8, 6) : "Generated on hire"}
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-3 rounded-xl border border-border/70 bg-secondary/30 p-4">
-              <label className="flex items-center justify-between gap-4">
-                <span>
-                  <span className="block text-sm font-medium">ETH limit</span>
-                  <span className="text-xs text-muted-foreground">Native token budget</span>
-                </span>
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-primary"
-                  checked={draft.nativeLimitEnabled}
-                  onChange={(event) =>
-                    updateDraft({
-                      nativeLimitEnabled: event.target.checked,
-                      nativeLimitAmount: event.target.checked ? draft.nativeLimitAmount : "",
-                    })
-                  }
-                  disabled={isSubmitting}
-                />
-              </label>
-
-              {draft.nativeLimitEnabled ? (
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,14rem)]">
-                  <input
-                    className={inputClass}
-                    value={draft.nativeLimitAmount}
-                    onChange={(event) => updateDraft({ nativeLimitAmount: event.target.value })}
-                    placeholder="0.05"
-                    inputMode="decimal"
-                    aria-label="ETH limit amount"
-                    disabled={isSubmitting}
-                  />
-                  <PeriodSelect
-                    value={draft.nativeLimitPeriod}
-                    onChange={(nativeLimitPeriod) => updateDraft({ nativeLimitPeriod })}
-                    disabled={isSubmitting}
-                    ariaLabel="ETH reset period"
-                  />
-                </div>
-              ) : null}
-            </section>
-
-            <section className="space-y-3 rounded-xl border border-border/70 bg-secondary/30 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold">Token limits</h3>
-                  <p className="text-xs text-muted-foreground">Optional ERC20 budgets</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      tokenLimits: [...current.tokenLimits, tokenLimitFromPreset()],
-                    }))
-                  }
-                  disabled={isSubmitting}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add token
-                </Button>
-              </div>
-
-              {draft.tokenLimits.length === 0 ? (
-                <p className="rounded-lg border border-border/60 bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
-                  No token limits
-                </p>
-              ) : (
+          {revealedPrivateKey ? (
+            <PrivateKeyReveal
+              copied={copied}
+              privateKey={revealedPrivateKey}
+              onCopy={copyPrivateKey}
+              onClose={closeReveal}
+            />
+          ) : (
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <section className={sectionClass}>
                 <div className="space-y-2">
-                  {draft.tokenLimits.map((limit) => (
-                    <TokenLimitRow
-                      key={limit.id}
-                      disabled={isSubmitting}
-                      limit={limit}
-                      onChange={(next) => updateTokenLimit(setDraft, limit.id, next)}
-                      onRemove={() => removeTokenLimit(setDraft, limit.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section className="space-y-3 rounded-xl border border-border/70 bg-secondary/30 p-4">
-              <div>
-                <h3 className="text-sm font-semibold">Validity window</h3>
-                <p className="text-xs text-muted-foreground">Optionally schedule or expire access</p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className={labelClass} htmlFor="valid-after">
-                    Valid after
+                  <label className={labelClass} htmlFor="employee-name">
+                    Agent name
                   </label>
                   <input
-                    id="valid-after"
-                    type="datetime-local"
+                    id="employee-name"
                     className={inputClass}
-                    value={String(draft.validAfter ?? "")}
-                    onChange={(event) => updateDraft({ validAfter: event.target.value })}
+                    value={draft.name}
+                    onChange={(event) => updateDraft({ name: event.target.value })}
+                    placeholder="Invoice assistant"
+                    autoComplete="off"
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className={labelClass} htmlFor="valid-until">
-                    Valid until
-                  </label>
-                  <input
-                    id="valid-until"
-                    type="datetime-local"
-                    className={inputClass}
-                    value={String(draft.validUntil ?? "")}
-                    onChange={(event) => updateDraft({ validUntil: event.target.value })}
+              </section>
+
+              <SettingSection
+                checked={draft.nativeLimitEnabled}
+                description="Native token budget"
+                disabled={isSubmitting}
+                icon={<Coins className="h-4 w-4" />}
+                title="ETH limit"
+                onCheckedChange={(checked) =>
+                  updateDraft({
+                    nativeLimitEnabled: checked,
+                    nativeLimitAmount: checked ? draft.nativeLimitAmount : "",
+                  })
+                }
+              >
+                {draft.nativeLimitEnabled ? (
+                  <LimitControls
+                    amount={draft.nativeLimitAmount}
+                    amountAriaLabel="ETH limit amount"
+                    amountPlaceholder="0.05"
                     disabled={isSubmitting}
+                    period={draft.nativeLimitPeriod}
+                    periodAriaLabel="ETH reset period"
+                    onAmountChange={(nativeLimitAmount) => updateDraft({ nativeLimitAmount })}
+                    onPeriodChange={(nativeLimitPeriod) => updateDraft({ nativeLimitPeriod })}
                   />
-                </div>
-              </div>
-            </section>
+                ) : null}
+              </SettingSection>
 
-            <section className="space-y-3 rounded-xl border border-border/70 bg-secondary/30 p-4">
-              <div>
-                <h3 className="text-sm font-semibold">Contract access</h3>
-                <p className="text-xs text-muted-foreground">Choose where this signer can call</p>
-              </div>
+              <SettingSection
+                checked={draft.tokenLimitsEnabled}
+                description="Optional ERC20 budgets"
+                disabled={isSubmitting}
+                icon={<ShieldCheck className="h-4 w-4" />}
+                title="Token limits"
+                onCheckedChange={(checked) =>
+                  setDraft((current) => ({
+                    ...current,
+                    tokenLimitsEnabled: checked,
+                    tokenLimits:
+                      checked && current.tokenLimits.length === 0
+                        ? [tokenLimitFromPreset()]
+                        : current.tokenLimits,
+                  }))
+                }
+              >
+                {draft.tokenLimitsEnabled ? (
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setDraft((current) => ({
+                            ...current,
+                            tokenLimits: [...current.tokenLimits, tokenLimitFromPreset()],
+                          }))
+                        }
+                        disabled={isSubmitting}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add token
+                      </Button>
+                    </div>
 
-              <div className="grid gap-2 sm:grid-cols-2">
-                <AccessButton
-                  active={draft.contractAccess === "any"}
-                  disabled={isSubmitting}
-                  label="Call any contract"
-                  onClick={() => updateDraft({ contractAccess: "any" })}
-                />
-                <AccessButton
-                  active={draft.contractAccess === "whitelist"}
-                  disabled={isSubmitting}
-                  label="Whitelist only"
-                  onClick={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      contractAccess: "whitelist",
-                      callRules:
-                        current.callRules.length > 0 ? current.callRules : [emptyCallRule()],
-                    }))
-                  }
-                />
-              </div>
-
-              {draft.contractAccess === "whitelist" ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className={labelClass}>Whitelist rules</span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setDraft((current) => ({
-                          ...current,
-                          callRules: [...current.callRules, emptyCallRule()],
-                        }))
-                      }
-                      disabled={isSubmitting}
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add rule
-                    </Button>
+                    {draft.tokenLimits.length === 0 ? (
+                      <p className="rounded-lg border border-border/60 bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
+                        No token limits
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {draft.tokenLimits.map((limit) => (
+                          <TokenLimitRow
+                            key={limit.id}
+                            disabled={isSubmitting}
+                            limit={limit}
+                            onChange={(next) => updateTokenLimit(setDraft, limit.id, next)}
+                            onRemove={() => removeTokenLimit(setDraft, limit.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
+                ) : null}
+              </SettingSection>
 
-                  {draft.callRules.map((rule) => (
-                    <CallRuleRow
-                      key={rule.id}
-                      disabled={isSubmitting}
-                      rule={rule}
-                      onChange={(next) => updateCallRule(setDraft, rule.id, next)}
-                      onRemove={() => removeCallRule(setDraft, rule.id)}
-                    />
-                  ))}
+              <SettingSection
+                checked={draft.validityWindowEnabled}
+                description="Optionally schedule or expire access"
+                disabled={isSubmitting}
+                icon={<CalendarRange className="h-4 w-4" />}
+                title="Validity window"
+                onCheckedChange={(validityWindowEnabled) =>
+                  updateDraft({ validityWindowEnabled })
+                }
+              >
+                {draft.validityWindowEnabled ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className={labelClass} htmlFor="valid-after">
+                        Valid after
+                      </label>
+                      <input
+                        id="valid-after"
+                        type="datetime-local"
+                        className={inputClass}
+                        value={String(draft.validAfter ?? "")}
+                        onChange={(event) => updateDraft({ validAfter: event.target.value })}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className={labelClass} htmlFor="valid-until">
+                        Valid until
+                      </label>
+                      <input
+                        id="valid-until"
+                        type="datetime-local"
+                        className={inputClass}
+                        value={String(draft.validUntil ?? "")}
+                        onChange={(event) => updateDraft({ validUntil: event.target.value })}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+              </SettingSection>
+
+              <section className={`${sectionClass} space-y-3`}>
+                <div>
+                  <h3 className="text-sm font-semibold">Contract access</h3>
+                  <p className="text-xs text-muted-foreground">Choose where this signer can call</p>
                 </div>
-              ) : null}
-            </section>
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              {hasPendingBroadcastKey ? (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={discardGeneratedKey}
-                  disabled={isSubmitting}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Discard generated key
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => handleOpenChange(false)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-              )}
-              <Button type="submit" disabled={Boolean(validationError) || isSubmitting}>
-                {mode.kind === "create" ? (
-                  <UserPlus className="h-4 w-4" />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <AccessButton
+                    active={draft.contractAccess === "any"}
+                    disabled={isSubmitting}
+                    label="Call any contract"
+                    onClick={() => updateDraft({ contractAccess: "any" })}
+                  />
+                  <AccessButton
+                    active={draft.contractAccess === "whitelist"}
+                    disabled={isSubmitting}
+                    label="Whitelist only"
+                    onClick={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        contractAccess: "whitelist",
+                        callRules:
+                          current.callRules.length > 0 ? current.callRules : [emptyCallRule()],
+                      }))
+                    }
+                  />
+                </div>
+
+                {draft.contractAccess === "whitelist" ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className={labelClass}>Whitelist rules</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setDraft((current) => ({
+                            ...current,
+                            callRules: [...current.callRules, emptyCallRule()],
+                          }))
+                        }
+                        disabled={isSubmitting}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add rule
+                      </Button>
+                    </div>
+
+                    {draft.callRules.map((rule) => (
+                      <CallRuleRow
+                        key={rule.id}
+                        disabled={isSubmitting}
+                        rule={rule}
+                        onChange={(next) => updateCallRule(setDraft, rule.id, next)}
+                        onRemove={() => removeCallRule(setDraft, rule.id)}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+
+              <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
+                {hasPendingBroadcastKey ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={discardGeneratedKey}
+                    disabled={isSubmitting}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Discard generated key
+                  </Button>
                 ) : (
-                  <Save className="h-4 w-4" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => handleOpenChange(false)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
                 )}
-                {submitLabel}
-              </Button>
-            </div>
-          </form>
-        )}
+                <Button type="submit" disabled={Boolean(validationError) || isSubmitting}>
+                  {mode.kind === "create" ? (
+                    <UserPlus className="h-4 w-4" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {submitLabel}
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SettingSection({
+  checked,
+  children,
+  description,
+  disabled,
+  icon,
+  onCheckedChange,
+  title,
+}: {
+  checked: boolean;
+  children: ReactNode;
+  description: string;
+  disabled: boolean;
+  icon: ReactNode;
+  onCheckedChange(checked: boolean): void;
+  title: string;
+}) {
+  return (
+    <section
+      className={cn(
+        sectionClass,
+        "space-y-3 transition-colors",
+        checked ? "border-primary/35 bg-secondary/45" : "bg-background/35",
+      )}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
+              checked
+                ? "border-primary/40 bg-primary/20 text-primary"
+                : "border-border/70 bg-secondary/40 text-muted-foreground",
+            )}
+          >
+            {icon}
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">{title}</h3>
+            <p className="truncate text-xs text-muted-foreground">{description}</p>
+          </div>
+        </div>
+        <SwitchControl
+          checked={checked}
+          disabled={disabled}
+          label={title}
+          onCheckedChange={onCheckedChange}
+        />
+      </div>
+      {checked ? <div>{children}</div> : null}
+    </section>
+  );
+}
+
+function SwitchControl({
+  checked,
+  disabled,
+  label,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  label: string;
+  onCheckedChange(checked: boolean): void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={`${label} ${checked ? "enabled" : "disabled"}`}
+      className={cn(
+        "relative h-7 w-12 shrink-0 overflow-hidden rounded-full border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60",
+        checked
+          ? "border-primary/60 bg-primary shadow-[0_0_24px_hsl(263_83%_66%/0.32)]"
+          : "border-border/80 bg-secondary",
+      )}
+      onClick={() => onCheckedChange(!checked)}
+      disabled={disabled}
+    >
+      <span
+        className={cn(
+          "absolute left-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-foreground shadow-sm transition-transform",
+          checked ? "translate-x-5" : "translate-x-0",
+        )}
+      />
+    </button>
   );
 }
 
@@ -669,112 +772,177 @@ function TokenLimitRow({
   const isCustom = isCustomTokenLimit(limit);
 
   return (
-    <div className="grid gap-2 rounded-lg border border-border/60 bg-secondary/30 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)_minmax(0,12rem)_auto]">
-      <select
-        className={selectClass}
-        value={presetIndexForTokenLimit(limit)}
-        onChange={(event) => {
-          const preset = BASE_SEPOLIA_TOKEN_PRESETS[Number(event.target.value)];
-          onChange({
-            token: preset.address,
-            symbol: preset.symbol,
-            decimals: preset.decimals,
-          });
-        }}
-        aria-label="Token preset"
-        disabled={disabled}
-      >
-        {BASE_SEPOLIA_TOKEN_PRESETS.map((preset, index) => (
-          <option key={preset.symbol} value={index}>
-            {preset.symbol} - {preset.name}
-          </option>
-        ))}
-      </select>
-      <input
-        className={inputClass}
-        value={limit.amount}
-        onChange={(event) => onChange({ amount: event.target.value })}
-        placeholder="100"
-        inputMode="decimal"
-        aria-label={`${limit.symbol || "Token"} amount`}
-        disabled={disabled}
-      />
-      <PeriodSelect
-        value={limit.period}
-        onChange={(period) => onChange({ period })}
-        disabled={disabled}
-        ariaLabel={`${limit.symbol || "Token"} reset period`}
-      />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label={`Remove ${limit.symbol} limit`}
-        onClick={onRemove}
-        disabled={disabled}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+    <div className="space-y-3 rounded-xl border border-border/60 bg-background/35 p-3">
+      <div className="grid gap-x-3 gap-y-1.5 lg:grid-cols-[minmax(12rem,15rem)_minmax(0,1fr)_minmax(12rem,15rem)_auto]">
+        <div className={fieldLabelClass}>Token</div>
+        <div className={fieldLabelClass}>Amount</div>
+        <div className="flex items-center gap-1.5">
+          <span className={fieldLabelClass}>Reset</span>
+          <InfoHint text="How often this limit renews. No reset means the budget does not automatically refresh." />
+        </div>
+        <div aria-hidden="true" />
+
+        <select
+          className={selectClass}
+          value={presetIndexForTokenLimit(limit)}
+          onChange={(event) => {
+            const preset = BASE_SEPOLIA_TOKEN_PRESETS[Number(event.target.value)];
+            onChange({
+              token: preset.address,
+              symbol: preset.symbol,
+              decimals: preset.decimals,
+            });
+          }}
+          aria-label="Token preset"
+          disabled={disabled}
+        >
+          {BASE_SEPOLIA_TOKEN_PRESETS.map((preset, index) => (
+            <option key={preset.symbol} value={index}>
+              {preset.symbol} - {preset.name}
+            </option>
+          ))}
+        </select>
+        <input
+          className={inputClass}
+          value={limit.amount}
+          onChange={(event) => onChange({ amount: event.target.value })}
+          placeholder="100"
+          inputMode="decimal"
+          aria-label={`${limit.symbol || "Token"} amount`}
+          disabled={disabled}
+        />
+        <ResetControl
+          ariaLabel={`${limit.symbol || "Token"} reset period`}
+          disabled={disabled}
+          onChange={(period) => onChange({ period })}
+          period={limit.period}
+        />
+        <div className="flex items-start">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Remove ${limit.symbol} limit`}
+            onClick={onRemove}
+            disabled={disabled}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
       {isCustom ? (
-        <div className="grid gap-2 sm:col-span-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
-          <input
-            className={inputClass}
-            value={limit.token}
-            onChange={(event) => onChange({ token: event.target.value })}
-            placeholder="0x token address"
-            spellCheck={false}
-            aria-label="Custom token address"
-            disabled={disabled}
-          />
-          <input
-            type="number"
-            className={inputClass}
-            value={String(Number.isFinite(limit.decimals) ? limit.decimals : 18)}
-            min={0}
-            max={18}
-            step={1}
-            onChange={(event) =>
-              onChange({ decimals: parseTokenDecimalsInput(event.target.value) })
-            }
-            aria-label="Custom token decimals"
-            disabled={disabled}
-          />
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem]">
+          <div className="space-y-1.5">
+            <span className={fieldLabelClass}>Token address</span>
+            <input
+              className={inputClass}
+              value={limit.token}
+              onChange={(event) => onChange({ token: event.target.value })}
+              placeholder="0x token address"
+              spellCheck={false}
+              aria-label="Custom token address"
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <span className={fieldLabelClass}>Decimals</span>
+            <input
+              type="number"
+              className={inputClass}
+              value={String(Number.isFinite(limit.decimals) ? limit.decimals : 18)}
+              min={0}
+              max={18}
+              step={1}
+              onChange={(event) =>
+                onChange({ decimals: parseTokenDecimalsInput(event.target.value) })
+              }
+              aria-label="Custom token decimals"
+              disabled={disabled}
+            />
+          </div>
         </div>
       ) : null}
     </div>
   );
 }
 
-function PeriodSelect({
+function LimitControls({
+  amount,
+  amountAriaLabel,
+  amountPlaceholder,
+  disabled,
+  onAmountChange,
+  onPeriodChange,
+  period,
+  periodAriaLabel,
+}: {
+  amount: string;
+  amountAriaLabel: string;
+  amountPlaceholder: string;
+  disabled: boolean;
+  onAmountChange(amount: string): void;
+  onPeriodChange(period: LimitPeriod): void;
+  period: LimitPeriod;
+  periodAriaLabel: string;
+}) {
+  return (
+    <div className="grid gap-x-3 gap-y-1.5 md:grid-cols-2">
+      <div className={fieldLabelClass}>Amount</div>
+      <div className="flex items-center gap-1.5">
+        <span className={fieldLabelClass}>Reset</span>
+        <InfoHint text="How often this limit renews. No reset means the budget does not automatically refresh." />
+      </div>
+      <div>
+        <input
+          className={inputClass}
+          value={amount}
+          onChange={(event) => onAmountChange(event.target.value)}
+          placeholder={amountPlaceholder}
+          inputMode="decimal"
+          aria-label={amountAriaLabel}
+          disabled={disabled}
+        />
+      </div>
+      <ResetField
+        ariaLabel={periodAriaLabel}
+        disabled={disabled}
+        onChange={onPeriodChange}
+        period={period}
+      />
+    </div>
+  );
+}
+
+function ResetControl({
   ariaLabel,
   disabled,
   onChange,
-  value,
+  period,
 }: {
   ariaLabel: string;
   disabled: boolean;
   onChange(period: LimitPeriod): void;
-  value: LimitPeriod;
+  period: LimitPeriod;
 }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,5.75rem)]">
+    <div className="grid gap-2">
       <select
         className={selectClass}
-        value={value.kind}
-        onChange={(event) => onChange(limitPeriodFromKind(event.target.value, value))}
+        value={period.kind}
+        onChange={(event) => onChange(limitPeriodFromKind(event.target.value, period))}
         aria-label={ariaLabel}
         disabled={disabled}
       >
-        <option value="fixed">Fixed</option>
+        <option value="fixed">No reset</option>
         <option value="hourly">Hourly</option>
         <option value="daily">Daily</option>
         <option value="weekly">Weekly</option>
         <option value="custom">Custom</option>
       </select>
-      {value.kind === "custom" ? (
+      {period.kind === "custom" ? (
         <input
           className={inputClass}
-          value={String(value.seconds)}
+          value={String(period.seconds)}
           onChange={(event) => onChange({ kind: "custom", seconds: event.target.value })}
           placeholder="Seconds"
           inputMode="numeric"
@@ -782,12 +950,48 @@ function PeriodSelect({
           aria-label={`${ariaLabel} custom seconds`}
           disabled={disabled}
         />
-      ) : (
-        <div className="hidden h-10 items-center rounded-lg border border-border/70 bg-secondary/30 px-3 text-sm text-muted-foreground sm:flex">
-          Reset
-        </div>
-      )}
+      ) : null}
     </div>
+  );
+}
+
+function ResetField({
+  ariaLabel,
+  disabled,
+  onChange,
+  period,
+}: {
+  ariaLabel: string;
+  disabled: boolean;
+  onChange(period: LimitPeriod): void;
+  period: LimitPeriod;
+}) {
+  return (
+    <div>
+      <ResetControl
+        ariaLabel={ariaLabel}
+        disabled={disabled}
+        onChange={onChange}
+        period={period}
+      />
+    </div>
+  );
+}
+
+function InfoHint({ text }: { text: string }) {
+  return (
+    <span className="group relative inline-flex">
+      <button
+        type="button"
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border/70 bg-secondary/50 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        aria-label={text}
+      >
+        <Info className="h-3 w-3" />
+      </button>
+      <span className="pointer-events-none absolute left-1/2 top-6 z-20 hidden w-64 -translate-x-1/2 rounded-lg border border-border/70 bg-background px-3 py-2 text-left text-xs normal-case leading-relaxed tracking-normal text-foreground shadow-xl group-focus-within:block group-hover:block">
+        {text}
+      </span>
+    </span>
   );
 }
 
@@ -947,11 +1151,13 @@ function emptyDraft(signer = ""): PermissionDraft {
   return {
     signer,
     name: "",
+    validityWindowEnabled: false,
     validAfter: "",
     validUntil: "",
     nativeLimitEnabled: false,
     nativeLimitAmount: "",
     nativeLimitPeriod: { kind: "daily" },
+    tokenLimitsEnabled: false,
     tokenLimits: [],
     contractAccess: "any",
     callRules: [],

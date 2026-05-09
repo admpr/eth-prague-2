@@ -168,11 +168,13 @@ export type CallRuleDraft = {
 export type PermissionDraft = {
   signer: string;
   name: string;
+  validityWindowEnabled: boolean;
   validAfter: string | number;
   validUntil: string | number;
   nativeLimitEnabled: boolean;
   nativeLimitAmount: string;
   nativeLimitPeriod: LimitPeriod;
+  tokenLimitsEnabled: boolean;
   tokenLimits: TokenLimitDraft[];
   contractAccess: "any" | "whitelist";
   callRules: CallRuleDraft[];
@@ -271,6 +273,7 @@ export function employeeSnapshotToDraft(snapshot: EmployeePermissionSnapshot): P
   return {
     signer: snapshot.signer,
     name: snapshot.name,
+    validityWindowEnabled: snapshot.validAfter > 0 || snapshot.validUntil > 0,
     validAfter: formatDateTimeLocal(snapshot.validAfter),
     validUntil: formatDateTimeLocal(snapshot.validUntil),
     nativeLimitEnabled: snapshot.nativeLimitEnabled,
@@ -278,6 +281,7 @@ export function employeeSnapshotToDraft(snapshot: EmployeePermissionSnapshot): P
       ? formatDraftAmount(snapshot.nativeLimit.amount, 18)
       : "",
     nativeLimitPeriod: secondsToLimitPeriod(snapshot.nativeLimit.period),
+    tokenLimitsEnabled: snapshot.tokenLimits.length > 0,
     tokenLimits: snapshot.tokenLimits.map((tokenLimit, index) => ({
       id: `${tokenLimit.token}-${index}`,
       token: tokenLimit.token,
@@ -344,8 +348,12 @@ export function validatePermissionDraft(draft: PermissionDraft): string[] {
     errors.push("Signer address is invalid.");
   }
 
-  const validAfter = parseOptionalUint48(draft.validAfter, "validAfter", errors);
-  const validUntil = parseOptionalUint48(draft.validUntil, "validUntil", errors);
+  const validAfter = draft.validityWindowEnabled
+    ? parseOptionalUint48(draft.validAfter, "validAfter", errors)
+    : undefined;
+  const validUntil = draft.validityWindowEnabled
+    ? parseOptionalUint48(draft.validUntil, "validUntil", errors)
+    : undefined;
   if (validUntil !== undefined && validUntil > 0 && (validAfter ?? 0) >= validUntil) {
     errors.push("validUntil must be after validAfter.");
   }
@@ -359,7 +367,7 @@ export function validatePermissionDraft(draft: PermissionDraft): string[] {
     collectLimitPeriodError(draft.nativeLimitPeriod, errors);
   }
 
-  for (const tokenLimit of draft.tokenLimits) {
+  for (const tokenLimit of draft.tokenLimitsEnabled ? draft.tokenLimits : []) {
     const label = tokenLimit.symbol || tokenLimit.id || "token";
     if (!isNonZeroAddress(tokenLimit.token)) {
       errors.push(`${label} token address is invalid or zero.`);
@@ -410,8 +418,12 @@ export function buildPermissionConfig(draft: PermissionDraft): PermissionConfig 
   return {
     signer: getAddress(draft.signer),
     requireAllowedCall: draft.contractAccess === "whitelist",
-    validAfter: parseOptionalUint48OrThrow(draft.validAfter, "validAfter"),
-    validUntil: parseOptionalUint48OrThrow(draft.validUntil, "validUntil"),
+    validAfter: draft.validityWindowEnabled
+      ? parseOptionalUint48OrThrow(draft.validAfter, "validAfter")
+      : 0,
+    validUntil: draft.validityWindowEnabled
+      ? parseOptionalUint48OrThrow(draft.validUntil, "validUntil")
+      : 0,
     callRules:
       draft.contractAccess === "any"
         ? []
@@ -420,13 +432,15 @@ export function buildPermissionConfig(draft: PermissionDraft): PermissionConfig 
             selector: callRule.mode === "any" ? ANY_SELECTOR : normalizeFunctionSelector(callRule.selector ?? ""),
             allowAnySelector: callRule.mode === "any",
           })),
-    tokenLimits: draft.tokenLimits.map((tokenLimit) => ({
-      token: getAddress(tokenLimit.token),
-      limit: {
-        amount: parseLimitAmount(tokenLimit.amount, tokenLimit.decimals),
-        period: limitPeriodToSeconds(tokenLimit.period),
-      },
-    })),
+    tokenLimits: draft.tokenLimitsEnabled
+      ? draft.tokenLimits.map((tokenLimit) => ({
+          token: getAddress(tokenLimit.token),
+          limit: {
+            amount: parseLimitAmount(tokenLimit.amount, tokenLimit.decimals),
+            period: limitPeriodToSeconds(tokenLimit.period),
+          },
+        }))
+      : [],
     nativeLimitEnabled: draft.nativeLimitEnabled,
     nativeLimit,
   };
