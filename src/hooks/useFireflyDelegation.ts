@@ -16,7 +16,13 @@ import {
   BASE_SEPOLIA_CHAIN_ID,
   isPlaceholderDelegate,
 } from "@/lib/config";
-import { getPendingNonce, baseSepoliaPublicClient } from "@/lib/rpc";
+import {
+  getPendingNonce,
+  baseSepoliaPublicClient,
+  waitForSubmittedTransactionReceipt,
+  SUBMITTED_TRANSACTION_RECEIPT_POLLING_INTERVAL_MS,
+  SUBMITTED_TRANSACTION_RECEIPT_TIMEOUT_MS,
+} from "@/lib/rpc";
 import { codeMatchesDelegate } from "@/lib/delegation";
 
 export type DelegationStep =
@@ -56,6 +62,7 @@ export function useFireflyDelegation() {
   const cancelledRef = useRef(false);
 
   useEffect(() => {
+    cancelledRef.current = false;
     return () => {
       cancelledRef.current = true;
       void fireflyRef.current?.destroy().catch(() => undefined);
@@ -126,7 +133,13 @@ export function useFireflyDelegation() {
     }
 
     setState({ step: "preparing", device });
+    let pendingHash: `0x${string}` | undefined;
     try {
+      const delegateContract = getAddress(DELEGATE_CONTRACT_ADDRESS);
+      logDelegation("Starting EIP-7702 delegation flow", {
+        authority: device.address,
+        delegateContract,
+      });
       const onchainChainId = await baseSepoliaPublicClient.getChainId();
       if (onchainChainId !== BASE_SEPOLIA_CHAIN_ID) {
         throw new Error(
@@ -134,27 +147,45 @@ export function useFireflyDelegation() {
         );
       }
       const nonce = await getPendingNonce(device.address as `0x${string}`);
+      logDelegation("Read on-chain context", {
+        chainId: onchainChainId,
+        expectedChainId: BASE_SEPOLIA_CHAIN_ID,
+        nonce: nonce.toString(),
+      });
 
       const request: AuthorizationRequest = {
         chainId: BigInt(BASE_SEPOLIA_CHAIN_ID),
-        contractAddress: getAddress(DELEGATE_CONTRACT_ADDRESS),
+        contractAddress: delegateContract,
         nonce,
       };
 
       setState({ step: "awaitingDevice", device });
+      logDelegation("Waiting for hardware wallet authorization approval", {
+        authority: device.address,
+        delegateContract: request.contractAddress,
+        nonce: request.nonce.toString(),
+      });
       const raw = await firefly.sendMessage(
         "ffx_signAuthorization",
         toFireflyAuthorizationParams(request),
       );
       const signature: AuthorizationSignature = fromFireflyAuthorizationResult(request, raw);
+      logDelegation("Received authorization signature from hardware wallet");
 
       setState({ step: "verifying", device });
+      logDelegation("Recovering authorization signer");
       const recovered = await recoverAuthorizationSigner(signature);
       if (getAddress(recovered) !== getAddress(device.address)) {
         throw new Error(`Signature recovered ${recovered}, expected ${device.address}`);
       }
+      logDelegation("Authorization signer verified", { recovered: getAddress(recovered) });
 
       setState({ step: "broadcasting", device });
+      logDelegation("Broadcasting authorization through local relayer API", {
+        authority: device.address,
+        delegateContract: signature.contractAddress,
+        nonce: signature.nonce.toString(),
+      });
       const response = await fetch("/api/broadcast-authorization", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -171,37 +202,55 @@ export function useFireflyDelegation() {
         }),
       });
       const payload = await response.json();
+      logDelegation("Broadcast API responded", {
+        ok: response.ok,
+        status: response.status,
+      });
       if (!response.ok) {
+        logDelegationError("Broadcast API rejected authorization", payload.error);
         throw new Error(payload.error ?? `Broadcast failed (HTTP ${response.status})`);
       }
       const hash = payload.hash as `0x${string}`;
       if (!hash) {
         throw new Error("Broadcast did not return a transaction hash");
       }
+      pendingHash = hash;
 
       setState({ step: "broadcasting", device, pendingHash: hash });
 
       // Poll receipt client-side. Public RPCs occasionally drop long-running
       // server requests, so we keep the client in control of waiting.
-      const receipt = await baseSepoliaPublicClient.waitForTransactionReceipt({
+      const stopWaitingLog = startReceiptWaitLog(hash);
+      const receipt = await waitForSubmittedTransactionReceipt({ hash }).finally(stopWaitingLog);
+      logDelegation("Transaction receipt received", {
         hash,
-        pollingInterval: 2000,
-        retryCount: 60,
-        retryDelay: 2000,
+        status: receipt.status,
+        blockNumber: receipt.blockNumber.toString(),
       });
 
       if (receipt.status !== "success") {
         throw new Error("Broadcast transaction reverted on chain");
       }
 
+      logDelegation("Checking delegated account code", {
+        authority: device.address,
+        delegateContract,
+      });
       const code = await baseSepoliaPublicClient.getCode({
         address: device.address as `0x${string}`,
       });
       if (!codeMatchesDelegate(code, DELEGATE_CONTRACT_ADDRESS)) {
         throw new Error("Delegation not detected on the authority address after confirmation");
       }
+      logDelegation("Delegation code detected on authority address", {
+        authority: device.address,
+        hash,
+      });
 
-      if (cancelledRef.current) return;
+      if (cancelledRef.current) {
+        logDelegation("Skipping confirmed state because delegation hook is unmounted", { hash });
+        return;
+      }
       setState({
         step: "confirmed",
         device,
@@ -214,6 +263,7 @@ export function useFireflyDelegation() {
         },
       });
     } catch (error) {
+      logDelegationError("Delegation flow failed", error, { pendingHash });
       setState({
         step: "error",
         device: state.device,
@@ -223,4 +273,42 @@ export function useFireflyDelegation() {
   }, [state.device]);
 
   return { state, connect, delegate, reset };
+}
+
+function logDelegation(message: string, details?: Record<string, unknown>) {
+  if (details) {
+    console.info("[Firefly delegation]", message, details);
+    return;
+  }
+  console.info("[Firefly delegation]", message);
+}
+
+function logDelegationError(
+  message: string,
+  error: unknown,
+  details?: Record<string, unknown>,
+) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error("[Firefly delegation]", message, {
+    ...details,
+    error: errorMessage,
+  });
+}
+
+function startReceiptWaitLog(hash: `0x${string}`): () => void {
+  const startedAt = Date.now();
+  logDelegation("Waiting for transaction receipt", {
+    hash,
+    pollingIntervalMs: SUBMITTED_TRANSACTION_RECEIPT_POLLING_INTERVAL_MS,
+    timeoutMs: SUBMITTED_TRANSACTION_RECEIPT_TIMEOUT_MS,
+  });
+
+  const interval = window.setInterval(() => {
+    logDelegation("Still waiting for transaction receipt", {
+      hash,
+      elapsedMs: Date.now() - startedAt,
+    });
+  }, 10_000);
+
+  return () => window.clearInterval(interval);
 }

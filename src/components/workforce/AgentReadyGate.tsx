@@ -30,7 +30,11 @@ import {
   type AgentReadyStatus,
   type FireflyTransactionRequest,
 } from "@/lib/kernel-modules";
-import { getPendingNonce, baseSepoliaPublicClient } from "@/lib/rpc";
+import {
+  getPendingNonce,
+  baseSepoliaPublicClient,
+  waitForSubmittedTransactionReceipt,
+} from "@/lib/rpc";
 import {
   DELEGATE_CONTRACT_ADDRESS,
   BASE_SEPOLIA_CHAIN_ID,
@@ -238,12 +242,7 @@ export function AgentReadyGate({ authority, initialReady = false, children }: Ag
 
       const hash = payload.hash as Hex;
       setPendingHash(hash);
-      const receipt = await baseSepoliaPublicClient.waitForTransactionReceipt({
-        hash,
-        pollingInterval: 2000,
-        retryCount: 60,
-        retryDelay: 2000,
-      });
+      const receipt = await waitForSubmittedTransactionReceipt({ hash });
       if (receipt.status !== "success") {
         throw new Error("Module installation transaction reverted on chain");
       }

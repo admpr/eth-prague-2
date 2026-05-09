@@ -11,7 +11,11 @@ import {
   toFireflyTransactionParams,
   type FireflyTransactionRequest,
 } from "@/lib/kernel-modules";
-import { baseSepoliaPublicClient, getPendingNonce } from "@/lib/rpc";
+import {
+  baseSepoliaPublicClient,
+  getPendingNonce,
+  waitForSubmittedTransactionReceipt,
+} from "@/lib/rpc";
 import { shortAddress } from "@/lib/utils";
 
 export type PermissionTxStep =
@@ -40,6 +44,7 @@ export function useAgentPermissionTransactions(authority?: string) {
   const operationIdRef = useRef(0);
 
   useEffect(() => {
+    cancelledRef.current = false;
     return () => {
       cancelledRef.current = true;
       operationIdRef.current += 1;
@@ -159,12 +164,7 @@ export function useAgentPermissionTransactions(authority?: string) {
           throw new Error("Broadcast returned an unexpected transaction hash");
         }
 
-        const receipt = await baseSepoliaPublicClient.waitForTransactionReceipt({
-          hash: knownHash,
-          pollingInterval: 2000,
-          retryCount: 60,
-          retryDelay: 2000,
-        });
+        const receipt = await waitForSubmittedTransactionReceipt({ hash: knownHash });
         ensureCurrentOperation();
         if (receipt.status !== "success") {
           throw new Error("Permission transaction reverted on chain");
