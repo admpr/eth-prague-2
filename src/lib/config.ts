@@ -12,9 +12,9 @@ export const AGENT_PERMISSION_VALIDATOR_ADDRESS =
 export const BASE_SEPOLIA_EXPLORER_TX = "https://sepolia.basescan.org/tx";
 export const BASE_SEPOLIA_EXPLORER_ADDRESS = "https://sepolia.basescan.org/address";
 
-// Circle's official testnet USDC on Base Sepolia (6 decimals).
+// Configured USDC token on Base Sepolia (6 decimals).
 export const BASE_SEPOLIA_USDC_ADDRESS =
-  "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
+  "0xe306beEd0166982e116B8eC40624E93a483D2BaA" as const;
 export const BASE_SEPOLIA_USDC_DECIMALS = 6;
 
 // WETH9 on Base Sepolia.

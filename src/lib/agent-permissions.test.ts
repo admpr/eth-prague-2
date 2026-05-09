@@ -94,6 +94,13 @@ test("parses decimal limits for 6 and 18 decimals", () => {
   assert.equal(parseLimitAmount("0.05", 18), 50_000_000_000_000_000n);
 });
 
+test("uses the configured Base Sepolia USDC token preset", () => {
+  assert.equal(
+    BASE_SEPOLIA_TOKEN_PRESETS[0].address,
+    getAddress("0xe306beEd0166982e116B8eC40624E93a483D2BaA"),
+  );
+});
+
 test("rejects empty amount", () => {
   assert.throws(() => parseLimitAmount("", 6), /amount/i);
   assert.throws(() => parseLimitAmount("   ", 18), /amount/i);
