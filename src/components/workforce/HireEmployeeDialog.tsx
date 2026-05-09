@@ -54,7 +54,7 @@ export type HireEmployeeDialogProps = {
   validator: Address;
   mode:
     | { kind: "create" }
-    | { kind: "update"; signer: Address; initialName: string; avatarSeed: string };
+    | { kind: "update"; draft: PermissionDraft; avatarSeed: string };
   onComplete(): Promise<void> | void;
 };
 
@@ -72,7 +72,10 @@ export function HireEmployeeDialog({
   mode,
   onComplete,
 }: HireEmployeeDialogProps) {
-  const [draft, setDraft] = useState<PermissionDraft>(() => draftFromMode(mode));
+  const updateModeDraft = mode.kind === "update" ? mode.draft : undefined;
+  const updateModeAvatarSeed = mode.kind === "update" ? mode.avatarSeed : undefined;
+  const initialDraft = useMemo(() => draftFromMode(mode), [mode.kind, updateModeDraft]);
+  const [draft, setDraft] = useState<PermissionDraft>(() => initialDraft);
   const [pendingCreatePrivateKey, setPendingCreatePrivateKey] = useState<Hex | undefined>();
   const [pendingCreateBroadcastHash, setPendingCreateBroadcastHash] = useState<Hex | undefined>();
   const [revealedPrivateKey, setRevealedPrivateKey] = useState<Hex | undefined>();
@@ -97,7 +100,7 @@ export function HireEmployeeDialog({
       return;
     }
 
-    setDraft(draftFromMode(mode));
+    setDraft(initialDraft);
     setPendingCreatePrivateKey(undefined);
     setPendingCreateBroadcastHash(undefined);
     setRevealedPrivateKey(undefined);
@@ -105,12 +108,11 @@ export function HireEmployeeDialog({
     setLocalError(undefined);
     resetTransaction();
   }, [
+    initialDraft,
     mode.kind,
-    mode.kind === "update" ? mode.avatarSeed : undefined,
-    mode.kind === "update" ? mode.initialName : undefined,
-    mode.kind === "update" ? mode.signer : undefined,
     open,
     resetTransaction,
+    updateModeAvatarSeed,
   ]);
 
   const validationError = useMemo(() => {
@@ -135,7 +137,7 @@ export function HireEmployeeDialog({
   const destructiveMessage = revealedPrivateKey
     ? txState.error ?? localError
     : validationError ?? txState.error ?? localError;
-  const avatarSeed = draft.signer || (mode.kind === "update" ? mode.avatarSeed : authority);
+  const avatarSeed = mode.kind === "update" ? mode.avatarSeed : draft.signer || authority;
   const submitLabel = isSubmitting
     ? transactionLabel(txState.step)
     : mode.kind === "create"
@@ -201,7 +203,7 @@ export function HireEmployeeDialog({
         signer = privateKeyToAccount(privateKey).address;
         setDraft((current) => ({ ...current, signer }));
       } else {
-        signer = mode.signer;
+        signer = mode.draft.signer as Address;
       }
       const finalDraft: PermissionDraft = {
         ...draft,
@@ -302,7 +304,7 @@ export function HireEmployeeDialog({
               <DialogDescription>
                 {mode.kind === "create"
                   ? "Create a scoped signer for this workforce member."
-                  : `Editing ${shortAddress(mode.signer, 8, 6)}.`}
+                  : `Editing ${shortAddress(mode.draft.signer, 8, 6)}.`}
               </DialogDescription>
             </div>
           </div>
@@ -777,15 +779,26 @@ function ExplorerLink({ href }: { href: string }) {
 
 function draftFromMode(mode: HireEmployeeDialogProps["mode"]): PermissionDraft {
   if (mode.kind === "update") {
-    return {
-      ...emptyDraft(mode.signer),
-      name: mode.initialName,
-      contractAccess: "whitelist",
-      callRules: [],
-    };
+    return cloneDraft(mode.draft);
   }
 
   return emptyDraft();
+}
+
+function cloneDraft(draft: PermissionDraft): PermissionDraft {
+  return {
+    ...draft,
+    nativeLimitPeriod: cloneLimitPeriod(draft.nativeLimitPeriod),
+    tokenLimits: draft.tokenLimits.map((limit) => ({
+      ...limit,
+      period: cloneLimitPeriod(limit.period),
+    })),
+    callRules: draft.callRules.map((rule) => ({ ...rule })),
+  };
+}
+
+function cloneLimitPeriod(period: PermissionDraft["nativeLimitPeriod"]) {
+  return period.kind === "custom" ? { ...period } : period;
 }
 
 function emptyDraft(signer = ""): PermissionDraft {

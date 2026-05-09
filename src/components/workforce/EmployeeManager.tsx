@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -26,7 +26,10 @@ import { HireEmployeeDialog } from "@/components/workforce/HireEmployeeDialog";
 import { PermissionSummary } from "@/components/workforce/PermissionSummary";
 import { type AgentEmployee } from "@/hooks/useAgentPermissionState";
 import { useAgentPermissionTransactions } from "@/hooks/useAgentPermissionTransactions";
-import { buildRemovePermissionCalldata } from "@/lib/agent-permissions";
+import {
+  buildRemovePermissionCalldata,
+  employeeSnapshotToDraft,
+} from "@/lib/agent-permissions";
 import { BASE_SEPOLIA_CHAIN_ID } from "@/lib/config";
 import {
   buildEmployeeMetadataStorageKey,
@@ -69,6 +72,10 @@ export function EmployeeManager({
     executeValidatorTransaction,
     explorerHref,
   } = useAgentPermissionTransactions(authority);
+  const updateDraft = useMemo(
+    () => (updateEmployee ? employeeSnapshotToDraft(updateEmployee) : undefined),
+    [updateEmployee],
+  );
 
   const runRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -235,7 +242,7 @@ export function EmployeeManager({
         mode={{ kind: "create" }}
         onComplete={completeDialogTransaction}
       />
-      {updateEmployee ? (
+      {updateEmployee && updateDraft ? (
         <HireEmployeeDialog
           open={Boolean(updateEmployee)}
           onOpenChange={(open) => {
@@ -245,8 +252,7 @@ export function EmployeeManager({
           validator={validator}
           mode={{
             kind: "update",
-            signer: updateEmployee.signer,
-            initialName: updateEmployee.name,
+            draft: updateDraft,
             avatarSeed: updateEmployee.avatarSeed,
           }}
           onComplete={completeDialogTransaction}

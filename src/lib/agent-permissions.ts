@@ -1,5 +1,7 @@
 import {
   encodeFunctionData,
+  formatEther,
+  formatUnits,
   getAddress,
   isAddress,
   parseEther,
@@ -176,6 +178,27 @@ export type PermissionDraft = {
   callRules: CallRuleDraft[];
 };
 
+export type EmployeePermissionSnapshot = {
+  signer: Address;
+  name: string;
+  validAfter: number;
+  validUntil: number;
+  nativeLimitEnabled: boolean;
+  nativeLimit: { amount: bigint; period: number };
+  tokenLimits: {
+    token: Address;
+    symbol: string;
+    decimals: number;
+    limit: { amount: bigint; period: number };
+  }[];
+  requireAllowedCall: boolean;
+  callRules: {
+    target: Address;
+    selector: Hex;
+    allowAnySelector: boolean;
+  }[];
+};
+
 export type PermissionLimitConfig = {
   amount: bigint;
   period: number;
@@ -216,6 +239,61 @@ export function limitPeriodToSeconds(period: LimitPeriod): number {
     case "custom":
       return parsePositiveWholeSeconds(period.seconds);
   }
+}
+
+export function secondsToLimitPeriod(seconds: number): LimitPeriod {
+  if (seconds === 0) return { kind: "fixed" };
+  if (seconds === 3600) return { kind: "hourly" };
+  if (seconds === 86400) return { kind: "daily" };
+  if (seconds === 604800) return { kind: "weekly" };
+  return { kind: "custom", seconds };
+}
+
+export function formatDateTimeLocal(unixSeconds: number): string {
+  if (unixSeconds === 0) return "";
+
+  const date = new Date(unixSeconds * 1000);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
+}
+
+export function formatDraftAmount(amount: bigint, decimals: number): string {
+  const formatted = decimals === 18 ? formatEther(amount) : formatUnits(amount, decimals);
+  const [integer, fraction] = formatted.split(".");
+  if (fraction === undefined) return integer;
+
+  const trimmedFraction = fraction.replace(/0+$/, "");
+  return trimmedFraction ? `${integer}.${trimmedFraction}` : integer;
+}
+
+export function employeeSnapshotToDraft(snapshot: EmployeePermissionSnapshot): PermissionDraft {
+  return {
+    signer: snapshot.signer,
+    name: snapshot.name,
+    validAfter: formatDateTimeLocal(snapshot.validAfter),
+    validUntil: formatDateTimeLocal(snapshot.validUntil),
+    nativeLimitEnabled: snapshot.nativeLimitEnabled,
+    nativeLimitAmount: snapshot.nativeLimitEnabled
+      ? formatDraftAmount(snapshot.nativeLimit.amount, 18)
+      : "",
+    nativeLimitPeriod: secondsToLimitPeriod(snapshot.nativeLimit.period),
+    tokenLimits: snapshot.tokenLimits.map((tokenLimit, index) => ({
+      id: `${tokenLimit.token}-${index}`,
+      token: tokenLimit.token,
+      symbol: tokenLimit.symbol,
+      decimals: tokenLimit.decimals,
+      amount: formatDraftAmount(tokenLimit.limit.amount, tokenLimit.decimals),
+      period: secondsToLimitPeriod(tokenLimit.limit.period),
+    })),
+    contractAccess: snapshot.requireAllowedCall ? "whitelist" : "any",
+    callRules: snapshot.callRules.map((callRule, index) => ({
+      id: `${callRule.target}-${index}`,
+      target: callRule.target,
+      mode: callRule.allowAnySelector ? "any" : "selector",
+      selector: callRule.allowAnySelector ? "" : callRule.selector,
+    })),
+  };
 }
 
 export function parseLimitAmount(value: string, decimals: number): bigint {
@@ -391,15 +469,24 @@ function parseOptionalUint48(value: string | number, label: string, errors: stri
 function parseOptionalUint48OrThrow(value: string | number, label: string): number {
   const text = String(value).trim();
   if (!text) return 0;
-  if (!/^\d+$/.test(text)) {
-    throw new Error(`${label} must be a whole number of seconds.`);
-  }
 
-  const parsed = Number(text);
+  const parsed = /^\d+$/.test(text) ? Number(text) : parseDateTimeLocalSeconds(text, label);
   if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > UINT48_MAX) {
     throw new Error(`${label} must fit within uint48 seconds.`);
   }
   return parsed;
+}
+
+function parseDateTimeLocalSeconds(value: string, label: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value)) {
+    throw new Error(`${label} must be a whole number of seconds or a local date/time.`);
+  }
+
+  const seconds = Math.floor(new Date(value).getTime() / 1000);
+  if (!Number.isFinite(seconds)) {
+    throw new Error(`${label} must be a valid local date/time.`);
+  }
+  return seconds;
 }
 
 function collectAmountError(parse: () => bigint, errors: string[]): void {
