@@ -11,6 +11,7 @@ import {
   type AuthorizationSignature,
 } from "@/lib/firefly/eip7702";
 import { bytesToHex } from "@/lib/firefly/hex";
+import { writeRememberedFireflySession } from "@/lib/firefly/session";
 import {
   DELEGATE_CONTRACT_ADDRESS,
   BASE_SEPOLIA_CHAIN_ID,
@@ -56,28 +57,43 @@ export type DelegationState = {
   result?: DelegationResult;
 };
 
+export function shouldPreserveFireflyConnectionOnUnmount(step: DelegationStep): boolean {
+  return step === "confirmed";
+}
+
 export function useFireflyDelegation() {
   const [state, setState] = useState<DelegationState>({ step: "idle" });
   const fireflyRef = useRef<FireflyClient | undefined>(undefined);
   const cancelledRef = useRef(false);
+  const currentStepRef = useRef<DelegationStep>("idle");
+
+  const updateState = useCallback((nextState: DelegationState) => {
+    currentStepRef.current = nextState.step;
+    setState(nextState);
+  }, []);
 
   useEffect(() => {
     cancelledRef.current = false;
     return () => {
       cancelledRef.current = true;
-      void fireflyRef.current?.destroy().catch(() => undefined);
+      const firefly = fireflyRef.current;
+      if (shouldPreserveFireflyConnectionOnUnmount(currentStepRef.current)) {
+        if (firefly) firefly.ondisconnect = undefined;
+        return;
+      }
+      void firefly?.destroy().catch(() => undefined);
     };
   }, []);
 
   const reset = useCallback(() => {
     void fireflyRef.current?.destroy().catch(() => undefined);
     fireflyRef.current = undefined;
-    setState({ step: "idle" });
-  }, []);
+    updateState({ step: "idle" });
+  }, [updateState]);
 
   const connect = useCallback(async () => {
     if (typeof navigator === "undefined" || !("bluetooth" in navigator)) {
-      setState({
+      updateState({
         step: "error",
         error:
           "Web Bluetooth isn't available in this browser. Use Chrome or Edge on a desktop OS.",
@@ -85,15 +101,14 @@ export function useFireflyDelegation() {
       return;
     }
 
-    setState({ step: "connecting" });
+    updateState({ step: "connecting" });
     try {
       const client = await FireflyClient.discover(true);
       fireflyRef.current = client;
       client.ondisconnect = () => {
         fireflyRef.current = undefined;
-        setState((prev) =>
-          prev.step === "confirmed" ? prev : { step: "error", error: "Hardware wallet disconnected." },
-        );
+        if (cancelledRef.current || currentStepRef.current === "confirmed") return;
+        updateState({ step: "error", error: "Hardware wallet disconnected." });
       };
 
       const result = await client.sendMessage("ffx_accounts", []);
@@ -101,30 +116,31 @@ export function useFireflyDelegation() {
         throw new Error("Hardware wallet returned an invalid account response");
       }
       const address = getAddress(bytesToHex(result[0]));
+      writeRememberedFireflySession({ address, serial: client.serialNumber });
 
-      setState({
+      updateState({
         step: "connected",
         device: { serial: client.serialNumber, address },
       });
     } catch (error) {
       await fireflyRef.current?.destroy().catch(() => undefined);
       fireflyRef.current = undefined;
-      setState({
+      updateState({
         step: "error",
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }, []);
+  }, [updateState]);
 
   const delegate = useCallback(async () => {
     const firefly = fireflyRef.current;
     const device = state.device;
     if (!firefly || !device) {
-      setState({ step: "error", error: "Connect a hardware wallet first" });
+      updateState({ step: "error", error: "Connect a hardware wallet first" });
       return;
     }
     if (isPlaceholderDelegate()) {
-      setState({
+      updateState({
         step: "error",
         error:
           "DELEGATE_CONTRACT_ADDRESS is not configured. Edit src/lib/config.ts before running the flow.",
@@ -132,7 +148,7 @@ export function useFireflyDelegation() {
       return;
     }
 
-    setState({ step: "preparing", device });
+    updateState({ step: "preparing", device });
     let pendingHash: `0x${string}` | undefined;
     try {
       const delegateContract = getAddress(DELEGATE_CONTRACT_ADDRESS);
@@ -159,7 +175,7 @@ export function useFireflyDelegation() {
         nonce,
       };
 
-      setState({ step: "awaitingDevice", device });
+      updateState({ step: "awaitingDevice", device });
       logDelegation("Waiting for hardware wallet authorization approval", {
         authority: device.address,
         delegateContract: request.contractAddress,
@@ -172,7 +188,7 @@ export function useFireflyDelegation() {
       const signature: AuthorizationSignature = fromFireflyAuthorizationResult(request, raw);
       logDelegation("Received authorization signature from hardware wallet");
 
-      setState({ step: "verifying", device });
+      updateState({ step: "verifying", device });
       logDelegation("Recovering authorization signer");
       const recovered = await recoverAuthorizationSigner(signature);
       if (getAddress(recovered) !== getAddress(device.address)) {
@@ -180,7 +196,7 @@ export function useFireflyDelegation() {
       }
       logDelegation("Authorization signer verified", { recovered: getAddress(recovered) });
 
-      setState({ step: "broadcasting", device });
+      updateState({ step: "broadcasting", device });
       logDelegation("Broadcasting authorization through local relayer API", {
         authority: device.address,
         delegateContract: signature.contractAddress,
@@ -216,7 +232,7 @@ export function useFireflyDelegation() {
       }
       pendingHash = hash;
 
-      setState({ step: "broadcasting", device, pendingHash: hash });
+      updateState({ step: "broadcasting", device, pendingHash: hash });
 
       // Poll receipt client-side. Public RPCs occasionally drop long-running
       // server requests, so we keep the client in control of waiting.
@@ -251,7 +267,7 @@ export function useFireflyDelegation() {
         logDelegation("Skipping confirmed state because delegation hook is unmounted", { hash });
         return;
       }
-      setState({
+      updateState({
         step: "confirmed",
         device,
         pendingHash: hash,
@@ -264,13 +280,13 @@ export function useFireflyDelegation() {
       });
     } catch (error) {
       logDelegationError("Delegation flow failed", error, { pendingHash });
-      setState({
+      updateState({
         step: "error",
         device: state.device,
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [state.device]);
+  }, [state.device, updateState]);
 
   return { state, connect, delegate, reset };
 }

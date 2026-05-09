@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FireflyClient } from "@/lib/firefly/firefly-client";
 import { bytesToHex } from "@/lib/firefly/hex";
+import { writeRememberedFireflySession } from "@/lib/firefly/session";
 import {
   buildAgentReadyCacheKey,
   buildAgentReadyCookieName,
@@ -125,8 +126,9 @@ export function AgentReadyGate({ authority, initialReady = false, children }: Ag
           status: "ready",
           validatorAddress: getConfiguredAgentPermissionValidatorAddress(),
         }
-      : readCachedReadiness(normalizedAuthority),
+      : null,
   );
+  const [cacheChecked, setCacheChecked] = useState(initialReady);
   const [checkError, setCheckError] = useState<string | undefined>();
   const [activationStep, setActivationStep] = useState<ActivationStep>("idle");
   const [activationError, setActivationError] = useState<string | undefined>();
@@ -134,9 +136,14 @@ export function AgentReadyGate({ authority, initialReady = false, children }: Ag
   const fireflyRef = useRef<FireflyClient | undefined>(undefined);
 
   useEffect(() => {
-    if (initialReady) return;
+    if (initialReady) {
+      setCacheChecked(true);
+      return;
+    }
+    setCacheChecked(false);
     const cached = readCachedReadiness(normalizedAuthority);
-    if (cached) setReadiness(cached);
+    setReadiness(cached);
+    setCacheChecked(true);
   }, [initialReady, normalizedAuthority]);
 
   const refreshReadiness = useCallback(async (): Promise<AgentReadyResult | null> => {
@@ -166,9 +173,10 @@ export function AgentReadyGate({ authority, initialReady = false, children }: Ag
   }, [refreshReadiness]);
 
   useEffect(() => {
+    if (!cacheChecked) return;
     if (readiness?.status === "ready") return;
     void refreshReadiness();
-  }, [readiness?.status, refreshReadiness]);
+  }, [cacheChecked, readiness?.status, refreshReadiness]);
 
   useEffect(() => {
     return () => {
@@ -183,7 +191,7 @@ export function AgentReadyGate({ authority, initialReady = false, children }: Ag
     setActivationError(undefined);
     setPendingHash(undefined);
     try {
-      const firefly = await FireflyClient.discover(true);
+      const firefly = await FireflyClient.discover(false);
       fireflyRef.current = firefly;
 
       const accounts = await firefly.sendMessage("ffx_accounts", []);
@@ -191,6 +199,7 @@ export function AgentReadyGate({ authority, initialReady = false, children }: Ag
         throw new Error("Hardware wallet returned an invalid account response");
       }
       const deviceAddress = getAddress(bytesToHex(accounts[0]));
+      writeRememberedFireflySession({ address: deviceAddress, serial: firefly.serialNumber });
       if (deviceAddress !== normalizedAuthority) {
         throw new Error(
           `Connected wallet ${shortAddress(deviceAddress)} does not match ${shortAddress(normalizedAuthority)}`,

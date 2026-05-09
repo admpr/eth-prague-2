@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { FireflyConnectionControl } from "@/components/shared/FireflyConnectionControl";
 
 export function SiteHeader() {
   return (
@@ -11,10 +12,13 @@ export function SiteHeader() {
         </span>
         <span className="font-display text-lg font-semibold tracking-tight">AgentForce</span>
       </Link>
-      <Badge variant="muted">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-        Base Sepolia
-      </Badge>
+      <div className="flex items-center gap-2">
+        <FireflyConnectionControl />
+        <Badge variant="muted">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          Base Sepolia
+        </Badge>
+      </div>
     </header>
   );
 }

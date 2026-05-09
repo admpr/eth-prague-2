@@ -77,6 +77,8 @@ function fireflyProtocolError(status: number): Error {
 }
 
 export class FireflyClient {
+  private static activeClient?: FireflyClient;
+
   readonly device: BluetoothDevice;
   readonly server: BluetoothRemoteGATTServer;
   readonly content: BluetoothRemoteGATTCharacteristic;
@@ -142,6 +144,9 @@ export class FireflyClient {
   }
 
   async destroy(): Promise<void> {
+    if (FireflyClient.activeClient === this) {
+      FireflyClient.activeClient = undefined;
+    }
     for (const callback of this.destroyCallbacks.splice(0)) {
       await callback();
     }
@@ -156,9 +161,40 @@ export class FireflyClient {
     await this.device.forget?.();
   }
 
+  static async reconnectPermitted(): Promise<FireflyClient | undefined> {
+    if (!navigator.bluetooth) {
+      throw new Error("Web Bluetooth is not available in this browser");
+    }
+    if (FireflyClient.activeClient?.server.connected) {
+      return FireflyClient.activeClient;
+    }
+    if (FireflyClient.activeClient) {
+      await FireflyClient.activeClient.destroy().catch(() => undefined);
+    }
+    if (!navigator.bluetooth.getDevices) {
+      return undefined;
+    }
+    const [device] = await navigator.bluetooth.getDevices();
+    if (!device) {
+      return undefined;
+    }
+    return FireflyClient.connectDevice(device);
+  }
+
+  static async disconnectActive(): Promise<void> {
+    await FireflyClient.activeClient?.destroy();
+  }
+
   static async discover(forceRequest = false): Promise<FireflyClient> {
     if (!navigator.bluetooth) {
       throw new Error("Web Bluetooth is not available in this browser");
+    }
+
+    if (FireflyClient.activeClient?.server.connected) {
+      return FireflyClient.activeClient;
+    }
+    if (FireflyClient.activeClient) {
+      await FireflyClient.activeClient.destroy().catch(() => undefined);
     }
 
     const pairedDevices = navigator.bluetooth.getDevices ? await navigator.bluetooth.getDevices() : [];
@@ -170,6 +206,10 @@ export class FireflyClient {
             optionalServices: ["battery_service", uuidSvcFsp],
           });
 
+    return FireflyClient.connectDevice(device);
+  }
+
+  private static async connectDevice(device: BluetoothDevice): Promise<FireflyClient> {
     if (!device.gatt) {
       throw new Error("Selected Bluetooth device has no GATT server");
     }
@@ -180,20 +220,30 @@ export class FireflyClient {
     const logger = await fsp.getCharacteristic(uuidChrFspLogger);
     const firefly = new FireflyClient(device, server, content, logger);
     await firefly.start();
+    try {
+      const query = await firefly.query();
+      if (query.version !== 0x01) {
+        throw new Error(`Unsupported hardware wallet protocol version ${query.version}`);
+      }
+      if (query.length) {
+        await firefly.reset();
+      }
 
-    const query = await firefly.query();
-    if (query.version !== 0x01) {
-      throw new Error(`Unsupported hardware wallet protocol version ${query.version}`);
+      FireflyClient.activeClient = firefly;
+      return firefly;
+    } catch (error) {
+      await firefly.destroy().catch(() => undefined);
+      throw error;
     }
-    if (query.length) {
-      await firefly.reset();
-    }
-
-    return firefly;
   }
 
   private async start(): Promise<void> {
-    const disconnectListener = () => this.ondisconnect?.();
+    const disconnectListener = () => {
+      if (FireflyClient.activeClient === this) {
+        FireflyClient.activeClient = undefined;
+      }
+      this.ondisconnect?.();
+    };
     this.device.addEventListener("gattserverdisconnected", disconnectListener);
     this.destroyCallbacks.push(async () => {
       this.device.removeEventListener("gattserverdisconnected", disconnectListener);

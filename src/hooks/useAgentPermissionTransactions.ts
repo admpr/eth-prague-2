@@ -5,6 +5,7 @@ import { getAddress, isAddress, keccak256, type Address, type Hex } from "viem";
 import { BASE_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_EXPLORER_TX } from "@/lib/config";
 import { FireflyClient } from "@/lib/firefly/firefly-client";
 import { bytesToHex } from "@/lib/firefly/hex";
+import { writeRememberedFireflySession } from "@/lib/firefly/session";
 import {
   fromFireflyTransactionSignature,
   serializeSignedFireflyTransaction,
@@ -87,10 +88,13 @@ export function useAgentPermissionTransactions(authority?: string) {
         const normalizedValidator = getAddress(validator);
 
         setTxState(operationId, { step: "connecting" });
-        await fireflyRef.current?.destroy().catch(() => undefined);
-        ensureCurrentOperation();
-        fireflyRef.current = undefined;
-        const firefly = await FireflyClient.discover(true);
+        let firefly = fireflyRef.current?.server.connected ? fireflyRef.current : undefined;
+        if (!firefly) {
+          await fireflyRef.current?.destroy().catch(() => undefined);
+          ensureCurrentOperation();
+          fireflyRef.current = undefined;
+          firefly = await FireflyClient.discover(false);
+        }
         if (!isCurrentOperation()) {
           await firefly.destroy().catch(() => undefined);
           ensureCurrentOperation();
@@ -104,6 +108,7 @@ export function useAgentPermissionTransactions(authority?: string) {
         }
 
         const deviceAddress = getAddress(bytesToHex(accounts[0]));
+        writeRememberedFireflySession({ address: deviceAddress, serial: firefly.serialNumber });
         if (deviceAddress !== account) {
           throw new Error(
             `Connected wallet ${shortAddress(deviceAddress)} does not match ${shortAddress(account)}`,
