@@ -74,6 +74,35 @@ type RawOnchainLimit = {
   used: bigint;
 };
 
+export type AgentPermissionStateRequestGate = {
+  nextRequestId: () => number;
+  markMounted: () => void;
+  markUnmounted: () => void;
+  canUpdate: (requestId: number) => boolean;
+};
+
+export function createAgentPermissionStateRequestGate(): AgentPermissionStateRequestGate {
+  let mounted = true;
+  let currentRequestId = 0;
+
+  return {
+    nextRequestId() {
+      currentRequestId += 1;
+      return currentRequestId;
+    },
+    markMounted() {
+      mounted = true;
+    },
+    markUnmounted() {
+      mounted = false;
+      currentRequestId += 1;
+    },
+    canUpdate(requestId) {
+      return mounted && currentRequestId === requestId;
+    },
+  };
+}
+
 export function formatLimitAmount(amount: bigint, decimals: number): string {
   const formatted = decimals === 18 ? formatEther(amount) : formatUnits(amount, decimals);
   const [integer, fraction] = formatted.split(".");
@@ -90,22 +119,24 @@ export function useAgentPermissionState(authority?: string) {
     employees: [],
     loading: Boolean(account && validatorAddress),
   });
-  const requestIdRef = useRef(0);
-  const mountedRef = useRef(true);
+  const requestGateRef = useRef<AgentPermissionStateRequestGate | undefined>(undefined);
+  if (!requestGateRef.current) {
+    requestGateRef.current = createAgentPermissionStateRequestGate();
+  }
+  const requestGate = requestGateRef.current;
 
   useEffect(() => {
+    requestGate.markMounted();
     return () => {
-      mountedRef.current = false;
-      requestIdRef.current += 1;
+      requestGate.markUnmounted();
     };
-  }, []);
+  }, [requestGate]);
 
   const refresh = useCallback(async (): Promise<AgentEmployee[]> => {
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
+    const requestId = requestGate.nextRequestId();
 
     if (!account || !validatorAddress) {
-      if (mountedRef.current) {
+      if (requestGate.canUpdate(requestId)) {
         setState({ employees: [], loading: false });
       }
       return [];
@@ -115,18 +146,18 @@ export function useAgentPermissionState(authority?: string) {
 
     try {
       const employees = await readEmployees(account, validatorAddress);
-      if (mountedRef.current && requestIdRef.current === requestId) {
+      if (requestGate.canUpdate(requestId)) {
         setState({ employees, loading: false });
       }
       return employees;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (mountedRef.current && requestIdRef.current === requestId) {
+      if (requestGate.canUpdate(requestId)) {
         setState({ employees: [], loading: false, error: message });
       }
       return [];
     }
-  }, [account, validatorAddress]);
+  }, [account, requestGate, validatorAddress]);
 
   useEffect(() => {
     void refresh();
