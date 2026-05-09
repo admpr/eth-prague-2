@@ -219,9 +219,18 @@ export function limitPeriodToSeconds(period: LimitPeriod): number {
 }
 
 export function parseLimitAmount(value: string, decimals: number): bigint {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) {
+    throw new Error("Token decimals must be a whole number from 0 to 18.");
+  }
+
   const trimmed = value.trim();
   if (!trimmed) {
     throw new Error("Limit amount is required.");
+  }
+
+  const [, fractional = ""] = trimmed.split(".");
+  if (fractional.length > decimals) {
+    throw new Error("Limit amount precision exceeds the token decimals.");
   }
 
   let amount: bigint;

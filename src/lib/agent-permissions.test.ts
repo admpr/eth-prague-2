@@ -73,6 +73,17 @@ test("rejects empty amount", () => {
   assert.throws(() => parseLimitAmount("   ", 18), /amount/i);
 });
 
+test("rejects amount precision beyond token decimals", () => {
+  assert.throws(() => parseLimitAmount("1.2345675", 6), /decimals|precision/i);
+  assert.throws(() => parseLimitAmount("0.0000000000000000005", 18), /decimals|precision/i);
+});
+
+test("rejects invalid token decimals", () => {
+  assert.throws(() => parseLimitAmount("1", -1), /decimals/i);
+  assert.throws(() => parseLimitAmount("1", 1.5), /decimals/i);
+  assert.throws(() => parseLimitAmount("1", Number.NaN), /decimals/i);
+});
+
 test("normalizes uppercase selector to lowercase", () => {
   assert.equal(normalizeFunctionSelector("0xA9059CBB"), "0xa9059cbb");
 });
