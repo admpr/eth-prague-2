@@ -1,10 +1,8 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { SiteHeader } from "@/components/shared/SiteHeader";
-import { WorkforceHeader } from "@/components/workforce/WorkforceHeader";
-import { EmployeeEmptyState } from "@/components/workforce/EmployeeEmptyState";
-import { PresetGallery } from "@/components/workforce/PresetGallery";
 import { AgentReadyGate } from "@/components/workforce/AgentReadyGate";
+import { WorkforceDashboard } from "@/components/workforce/WorkforceDashboard";
 import {
   buildAgentReadyCookieName,
   getConfiguredAgentPermissionValidatorAddress,
@@ -44,10 +42,8 @@ export default async function WorkforcePage({
       <SiteHeader />
       <AgentReadyGate authority={params.authority} initialReady={initialReady}>
         <Suspense>
-          <WorkforceHeader authority={params.authority} />
+          <WorkforceDashboard authority={params.authority} />
         </Suspense>
-        <EmployeeEmptyState />
-        <PresetGallery />
       </AgentReadyGate>
     </main>
   );

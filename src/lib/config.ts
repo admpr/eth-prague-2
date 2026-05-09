@@ -17,6 +17,11 @@ export const BASE_SEPOLIA_USDC_ADDRESS =
   "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
 export const BASE_SEPOLIA_USDC_DECIMALS = 6;
 
+// WETH9 on Base Sepolia.
+export const BASE_SEPOLIA_WETH_ADDRESS =
+  "0x4200000000000000000000000000000000000006" as const;
+export const BASE_SEPOLIA_WETH_DECIMALS = 18;
+
 export function isPlaceholderDelegate(): boolean {
   return /^0x0+$/i.test(DELEGATE_CONTRACT_ADDRESS);
 }
