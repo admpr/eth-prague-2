@@ -21,38 +21,38 @@ const INITIAL_PRESET_COUNT = 3;
 const PRESET_CARDS = {
   "stablecoin-assistant": {
     icon: Coins,
-    accent: "from-emerald-500/20 to-emerald-500/0",
-    iconColor: "text-emerald-400",
+    iconColor: "text-emerald-300 border-emerald-500/30 bg-emerald-500/10",
+    code: "P.01",
   },
   "defi-rebalancer": {
     icon: Repeat,
-    accent: "from-primary/20 to-primary/0",
-    iconColor: "text-primary",
+    iconColor: "text-primary border-primary/40 bg-primary/10",
+    code: "P.02",
   },
   "rewards-claimer": {
     icon: Gift,
-    accent: "from-accent/20 to-accent/0",
-    iconColor: "text-accent",
+    iconColor: "text-accent border-accent/30 bg-accent/10",
+    code: "P.03",
   },
   "treasury-payer": {
     icon: Coins,
-    accent: "from-sky-500/20 to-sky-500/0",
-    iconColor: "text-sky-300",
+    iconColor: "text-foreground border-border bg-secondary",
+    code: "P.04",
   },
   "gas-runner": {
     icon: Repeat,
-    accent: "from-amber-500/20 to-amber-500/0",
-    iconColor: "text-amber-300",
+    iconColor: "text-amber-300 border-amber-500/30 bg-amber-500/10",
+    code: "P.05",
   },
   "governance-voter": {
     icon: Gift,
-    accent: "from-rose-500/20 to-rose-500/0",
-    iconColor: "text-rose-300",
+    iconColor: "text-foreground border-border bg-secondary",
+    code: "P.06",
   },
 } satisfies Record<CapabilityPresetId, {
   icon: typeof Coins;
-  accent: string;
   iconColor: string;
+  code: string;
 }>;
 
 export function PresetGallery({ onHirePreset }: PresetGalleryProps) {
@@ -64,19 +64,19 @@ export function PresetGallery({ onHirePreset }: PresetGalleryProps) {
   const hasMorePresets = visibleCount < CAPABILITY_PRESETS.length;
 
   return (
-    <section className="container pb-20">
-      <div className="mb-6 flex items-end justify-between">
-        <div>
-          <h3 className="font-display text-2xl font-semibold tracking-tight">Capability presets</h3>
-          <p className="text-sm text-muted-foreground">
-            Curated policies for common agent jobs, ready to confirm or tune.
-          </p>
+    <section className="container pb-24">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-3">
+          <span className="num-pin">03 / Capability Presets</span>
+          <h3 className="text-[clamp(1.5rem,2.6vw,2.25rem)] font-semibold leading-tight tracking-tightest">
+            Curated policies, <span className="editorial text-accent">ready</span> to deploy.
+          </h3>
         </div>
         <Badge variant="muted">Ready to hire</Badge>
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-0 border-t border-border/60 md:grid-cols-2 lg:grid-cols-3">
         {visiblePresets.map(({ id, title, role, budget, expires }, i) => {
-          const { icon: Icon, accent, iconColor } = PRESET_CARDS[id];
+          const { icon: Icon, iconColor, code } = PRESET_CARDS[id];
 
           return (
             <motion.article
@@ -85,21 +85,20 @@ export function PresetGallery({ onHirePreset }: PresetGalleryProps) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
               transition={{ duration: 0.5, delay: i * 0.05 }}
-              className="group relative overflow-hidden rounded-2xl surface p-6 transition-transform hover:-translate-y-1"
+              className="group relative border-b border-r border-border/60 p-7 transition-colors hover:bg-secondary/20 lg:[&:nth-child(3n)]:border-r-0 [&:nth-last-child(-n+3)]:border-b-0 max-md:[&:nth-last-child(-n+3)]:border-b max-lg:[&:nth-last-child(-n+3)]:border-b"
             >
-              <div
-                className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${accent} opacity-50`}
-              />
-              <div className="relative space-y-5">
+              <div className="space-y-6">
                 <div className="flex items-start justify-between">
-                  <span className={`flex h-11 w-11 items-center justify-center rounded-xl bg-secondary/80 ${iconColor}`}>
-                    <Icon className="h-5 w-5" />
+                  <span className={`flex h-11 w-11 items-center justify-center rounded-sm ${iconColor}`}>
+                    <Icon className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
                   </span>
-                  <Badge variant="default">Policy preset</Badge>
+                  <span className="font-mono text-[0.65rem] tracking-[0.18em] text-muted-foreground">
+                    {code}
+                  </span>
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold">{title}</h4>
-                  <p className="text-sm text-muted-foreground">{role}</p>
+                  <h4 className="text-[1.0625rem] font-semibold tracking-tight">{title}</h4>
+                  <p className="mt-1 text-sm text-muted-foreground">{role}</p>
                 </div>
                 <dl className="space-y-2 text-sm">
                   <Row label="Budget" value={budget} />
@@ -149,9 +148,11 @@ export function PresetGallery({ onHirePreset }: PresetGalleryProps) {
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border border-border/60 bg-secondary/40 px-3 py-2">
-      <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium">{value}</span>
+    <div className="flex items-center justify-between border-b border-border/40 pb-2 last:border-b-0 last:pb-0">
+      <span className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </span>
+      <span className="text-[0.8125rem] font-medium">{value}</span>
     </div>
   );
 }

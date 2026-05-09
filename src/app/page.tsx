@@ -8,8 +8,17 @@ export default function HomePage() {
       <SiteHeader />
       <Hero />
       <FeatureGrid />
-      <footer className="container border-t border-border/60 py-8 text-xs text-muted-foreground">
-        Wallexa · Hackathon proof of concept · Base Sepolia only · Hardware wallet required
+      <footer className="border-t border-border/50">
+        <div className="container flex flex-col items-start justify-between gap-3 py-8 text-xs text-muted-foreground sm:flex-row sm:items-center">
+          <div className="flex items-center gap-3 font-mono uppercase tracking-[0.18em]">
+            <span className="text-foreground">Wallexa</span>
+            <span className="h-px w-6 bg-border" />
+            <span>Hackathon proof of concept</span>
+          </div>
+          <div className="font-mono uppercase tracking-[0.18em]">
+            Base Sepolia · Hardware wallet required
+          </div>
+        </div>
       </footer>
     </main>
   );

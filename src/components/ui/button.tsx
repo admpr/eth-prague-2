@@ -6,24 +6,24 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-[transform,background-color,color,border-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:translate-y-[1px]",
   {
     variants: {
       variant: {
         primary:
-          "bg-gradient-to-r from-primary via-primary to-accent text-primary-foreground shadow-[0_10px_30px_-10px_hsl(263_83%_66%/0.6)] hover:shadow-[0_18px_44px_-12px_hsl(263_83%_66%/0.7)] hover:-translate-y-0.5",
+          "bg-primary text-primary-foreground border border-primary hover:bg-[hsl(333_80%_56%)] hover:border-[hsl(333_80%_56%)]",
         secondary:
-          "bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80",
-        ghost: "text-foreground/80 hover:text-foreground hover:bg-secondary/60",
+          "bg-secondary text-secondary-foreground border border-border hover:border-foreground/30",
+        ghost: "text-foreground/75 hover:text-foreground hover:bg-secondary/60",
         outline:
-          "border border-border bg-transparent text-foreground hover:bg-secondary/60",
+          "border border-border bg-transparent text-foreground hover:border-foreground/50 hover:bg-secondary/40",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground border border-destructive hover:bg-[hsl(0_78%_62%)]",
       },
       size: {
-        sm: "h-9 px-4 text-sm",
-        md: "h-11 px-6 text-sm",
-        lg: "h-14 px-8 text-base",
+        sm: "h-9 px-3.5 text-[0.8125rem]",
+        md: "h-10 px-5 text-sm",
+        lg: "h-12 px-7 text-[0.9375rem]",
         icon: "h-10 w-10",
       },
     },

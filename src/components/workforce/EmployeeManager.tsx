@@ -560,7 +560,7 @@ function TransactionLink({ href }: { href: string }) {
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center gap-2 text-sm text-accent"
+      className="inline-flex items-center gap-2 text-sm text-primary underline-offset-4 hover:underline"
     >
       View transaction
       <ExternalLink className="h-3.5 w-3.5" />

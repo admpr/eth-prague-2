@@ -9,79 +9,102 @@ export function HardwareWalletArt({ className }: { className?: string }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
-        className="relative mx-auto aspect-[4/5] w-full max-w-sm"
+        className="relative mx-auto aspect-[4/5] w-full max-w-[26rem]"
       >
-        {/* Halo */}
-        <motion.div
-          className="absolute -inset-10 rounded-[40%] bg-gradient-to-br from-primary/30 via-transparent to-accent/30 blur-3xl"
-          animate={{ rotate: [0, 360] }}
-          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-        />
+        {/* Crosshair frame markers */}
+        <CornerTick className="left-0 top-0" />
+        <CornerTick className="right-0 top-0 rotate-90" />
+        <CornerTick className="left-0 bottom-0 -rotate-90" />
+        <CornerTick className="right-0 bottom-0 rotate-180" />
+
+        {/* Soft pink wash behind device — single, no rotation */}
+        <div className="absolute inset-x-8 top-8 bottom-12 rounded-[2.5rem] bg-primary/[0.08]" />
 
         {/* Device body */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative h-[88%] w-[58%] rounded-[2.4rem] border border-white/10 bg-gradient-to-b from-zinc-800 via-zinc-900 to-black p-3 shadow-[0_60px_120px_-30px_rgba(0,0,0,0.9)]">
-            <div className="absolute inset-0 rounded-[2.4rem] ring-1 ring-inset ring-white/5" />
+          <div className="relative h-[88%] w-[58%] rounded-[2rem] border border-white/10 bg-[#0d0d10] p-3 shadow-[0_60px_120px_-30px_rgba(0,0,0,0.85)]">
+            <div className="absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-white/[0.04]" />
             {/* Screen */}
-            <div className="relative h-[60%] w-full overflow-hidden rounded-[1.6rem] bg-black">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,hsl(263_83%_66%/0.4),transparent_70%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,hsl(188_92%_56%/0.3),transparent_70%)]" />
-              <div className="relative flex h-full flex-col justify-between p-4 text-white">
-                <div className="flex items-center justify-between text-[0.55rem] uppercase tracking-widest text-white/60">
-                  <span>Hardware wallet</span>
-                  <span className="font-mono">EIP-7702</span>
+            <div className="relative h-[60%] w-full overflow-hidden rounded-[1.4rem] bg-black">
+              <div className="absolute left-2 right-2 top-2 flex justify-between text-[0.5rem] font-mono uppercase tracking-[0.22em] text-white/40">
+                <span>FW.4.2.1</span>
+                <span>EIP-7702</span>
+              </div>
+              <div className="relative flex h-full flex-col justify-center px-4 pb-4 pt-9 text-white">
+                <div className="font-mono text-[0.5rem] tracking-[0.22em] text-white/45">
+                  AUTHORIZE DELEGATION
                 </div>
-                <div className="space-y-1.5 font-display">
-                  <div className="text-[0.6rem] text-white/50">Authorize delegation</div>
-                  <div className="text-base leading-tight font-semibold">Smart EOA</div>
-                  <div className="text-[0.6rem] font-mono text-accent">0xef01·00…</div>
+                <div className="mt-1.5 font-serif italic text-[1.6rem] leading-none text-white">
+                  Smart EOA
                 </div>
-                <div className="flex items-center gap-1.5 text-[0.55rem]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_currentColor]" />
-                  <span className="text-white/60">Awaiting confirmation</span>
+                <div className="mt-2 font-mono text-[0.6rem] text-primary">0xef01·00…d4f9</div>
+                <div className="mt-auto flex items-center gap-1.5 pt-3 text-[0.5rem]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="font-mono uppercase tracking-[0.22em] text-white/60">
+                    Awaiting confirmation
+                  </span>
                 </div>
               </div>
             </div>
             {/* Buttons */}
-            <div className="mt-6 flex justify-around px-4">
+            <div className="mt-5 flex justify-around px-3">
               {[0, 1, 2, 3].map((i) => (
-                <span key={i} className="h-2.5 w-9 rounded-full bg-zinc-700" />
+                <span key={i} className="h-2 w-7 rounded-sm bg-zinc-700" />
               ))}
             </div>
-            {/* Brand label */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[0.5rem] uppercase tracking-[0.4em] text-white/30">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 font-mono text-[0.45rem] uppercase tracking-[0.4em] text-white/25">
               secure element
             </div>
           </div>
         </div>
 
-        {/* Floating agent orbs */}
+        {/* Floating agent identifiers */}
         {[
-          { x: "-12%", y: "10%", delay: 0, label: "AGT-01" },
-          { x: "92%", y: "30%", delay: 0.6, label: "AGT-02" },
-          { x: "-8%", y: "70%", delay: 1.2, label: "AGT-03" },
-          { x: "94%", y: "78%", delay: 1.8, label: "AGT-04" },
+          { x: "-6%", y: "12%", delay: 0, label: "AGT.01", role: "stablecoin" },
+          { x: "78%", y: "22%", delay: 0.6, label: "AGT.02", role: "rebalancer" },
+          { x: "-8%", y: "62%", delay: 1.2, label: "AGT.03", role: "claims" },
+          { x: "80%", y: "70%", delay: 1.8, label: "AGT.04", role: "treasury" },
         ].map((orb) => (
           <motion.div
             key={orb.label}
             className="absolute"
             style={{ left: orb.x, top: orb.y }}
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1, y: [0, -8, 0] }}
+            initial={{ opacity: 0, x: -4 }}
+            animate={{ opacity: 1, x: 0, y: [0, -6, 0] }}
             transition={{
-              duration: 4,
+              duration: 5,
               repeat: Infinity,
               ease: "easeInOut",
               delay: orb.delay,
             }}
           >
-            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[0.6rem] backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_8px_currentColor]" />
-              <span className="font-mono text-white/70">{orb.label}</span>
+            <div className="flex flex-col gap-0.5 border border-border/80 bg-background/85 px-2.5 py-1.5 backdrop-blur-sm">
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <span className="font-mono text-[0.6rem] tracking-[0.14em] text-foreground">
+                  {orb.label}
+                </span>
+              </div>
+              <span className="font-mono text-[0.5rem] uppercase tracking-[0.18em] text-muted-foreground">
+                {orb.role}
+              </span>
             </div>
           </motion.div>
         ))}
       </motion.div>
     </div>
+  );
+}
+
+function CornerTick({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`absolute h-4 w-4 ${className}`}
+      style={{
+        borderLeft: "1px solid hsl(var(--primary))",
+        borderTop: "1px solid hsl(var(--primary))",
+      }}
+    />
   );
 }

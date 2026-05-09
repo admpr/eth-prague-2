@@ -7,7 +7,7 @@ export const Card = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("rounded-2xl surface p-6", className)}
+    className={cn("rounded-xl surface p-6", className)}
     {...props}
   />
 ));
@@ -18,7 +18,7 @@ export const CardHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDiv
 );
 
 export const CardTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-  <h3 className={cn("text-xl font-semibold", className)} {...props} />
+  <h3 className={cn("text-xl font-semibold tracking-tight", className)} {...props} />
 );
 
 export const CardDescription = ({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (

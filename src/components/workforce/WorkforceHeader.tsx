@@ -40,16 +40,19 @@ export function WorkforceHeader({ authority, activeEmployees = 0 }: WorkforceHea
       transition={{ duration: 0.5 }}
       className="container pt-10"
     >
-      <div className="rounded-2xl surface-glow p-8">
-        <div className="flex flex-wrap items-start justify-between gap-8">
-          <div className="space-y-3 max-w-xl">
-            <Badge variant="success">
-              <ShieldCheck className="h-3.5 w-3.5" /> Delegation active
-            </Badge>
-            <h1 className="font-display text-3xl font-semibold tracking-tight md:text-4xl">
-              Welcome to your <span className="text-gradient">workforce.</span>
+      <div className="rounded-xl surface-glow p-8 md:p-10">
+        <div className="flex flex-wrap items-start justify-between gap-10">
+          <div className="space-y-4 max-w-xl">
+            <div className="flex items-center gap-3">
+              <span className="num-pin">Workforce / Live</span>
+              <Badge variant="success">
+                <ShieldCheck className="h-3.5 w-3.5" /> Delegation active
+              </Badge>
+            </div>
+            <h1 className="text-[clamp(2rem,4vw,3rem)] font-semibold leading-[0.98] tracking-tightest">
+              Welcome to your <span className="editorial text-accent">workforce.</span>
             </h1>
-            <p className="text-muted-foreground">
+            <p className="max-w-md text-muted-foreground">
               Your wallet is now a smart account. Hire AI employees, fund their budgets, and revoke
               them with a click.
             </p>
@@ -58,7 +61,7 @@ export function WorkforceHeader({ authority, activeEmployees = 0 }: WorkforceHea
           <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-2">
             <Tile
               icon={Wallet}
-              iconClass="text-primary bg-primary/10"
+              iconClass="text-primary bg-primary/10 border border-primary/30"
               label="Account"
               value={authority ? shortAddress(authority, 8, 6) : "—"}
               href={authority ? `${BASE_SEPOLIA_EXPLORER_ADDRESS}/${authority}` : undefined}
@@ -66,20 +69,20 @@ export function WorkforceHeader({ authority, activeEmployees = 0 }: WorkforceHea
             />
             <Tile
               icon={Users}
-              iconClass="text-accent bg-accent/10"
+              iconClass="text-foreground bg-secondary border border-border"
               label="Active employees"
               value={activeEmployees.toString()}
               hint={activeEmployees === 0 ? "None hired yet" : undefined}
             />
             <Tile
               icon={Coins}
-              iconClass="text-zinc-200 bg-zinc-200/10"
+              iconClass="text-foreground/80 bg-secondary border border-border"
               label="ETH balance"
               value={balances ? `${balances.eth} ETH` : null}
             />
             <Tile
               icon={CircleDollarSign}
-              iconClass="text-emerald-400 bg-emerald-500/10"
+              iconClass="text-emerald-400 bg-emerald-500/10 border border-emerald-500/30"
               label="USDC balance"
               value={balances ? `${balances.usdc} USDC` : null}
             />
@@ -108,15 +111,15 @@ function Tile({
   mono?: boolean;
 }) {
   const content = (
-    <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-secondary/40 px-4 py-3.5 transition-colors hover:border-accent/30 hover:bg-secondary/60 h-full">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClass}`}>
-        <Icon className="h-4 w-4" />
+    <div className="flex items-start gap-3 rounded-md border border-border bg-secondary/30 px-4 py-3.5 transition-colors hover:border-primary/40 hover:bg-secondary/50 h-full">
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-sm ${iconClass}`}>
+        <Icon className="h-4 w-4" strokeWidth={1.5} />
       </span>
       <div className="flex-1 min-w-0">
-        <div className="text-[0.65rem] uppercase tracking-wider text-muted-foreground">
+        <div className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted-foreground">
           {label}
         </div>
-        <div className={`mt-0.5 text-base ${mono ? "font-mono" : "font-semibold"}`}>
+        <div className={`mt-1 text-base ${mono ? "font-mono" : "font-semibold tracking-tight"}`}>
           {value === null ? (
             <span className="inline-block h-5 w-24 animate-pulse rounded bg-secondary" />
           ) : (

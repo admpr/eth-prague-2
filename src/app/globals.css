@@ -4,35 +4,36 @@
 
 @layer base {
   :root {
-    --font-sans: "Inter", "InterVariable", system-ui, sans-serif;
-    --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+    --font-sans: "Inter Tight", "Inter", system-ui, sans-serif;
+    --font-display: "Instrument Serif", "Times New Roman", serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-    --background: 240 14% 4%;
-    --foreground: 240 6% 96%;
+    --background: 240 8% 5%;
+    --foreground: 40 18% 96%;
 
-    --card: 240 12% 7%;
-    --card-foreground: 240 6% 96%;
+    --card: 240 6% 8%;
+    --card-foreground: 40 18% 96%;
 
-    --primary: 263 83% 66%;
-    --primary-foreground: 240 6% 99%;
+    --primary: 333 80% 51%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 10% 14%;
-    --secondary-foreground: 240 6% 96%;
+    --secondary: 240 5% 11%;
+    --secondary-foreground: 40 18% 96%;
 
-    --muted: 240 8% 12%;
-    --muted-foreground: 240 6% 64%;
+    --muted: 240 5% 14%;
+    --muted-foreground: 240 5% 60%;
 
-    --accent: 188 92% 56%;
-    --accent-foreground: 240 14% 4%;
+    --accent: 42 28% 85%;
+    --accent-foreground: 240 8% 5%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 240 6% 99%;
+    --destructive: 0 78% 58%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 240 8% 16%;
-    --input: 240 8% 16%;
-    --ring: 263 83% 66%;
+    --border: 240 5% 17%;
+    --input: 240 5% 17%;
+    --ring: 333 80% 51%;
 
-    --radius: 0.875rem;
+    --radius: 0.625rem;
   }
 
   * {
@@ -42,62 +43,149 @@
   html,
   body {
     @apply bg-background text-foreground antialiased;
-    background-image:
-      radial-gradient(ellipse 60% 40% at 50% -10%, hsl(263 83% 66% / 0.2), transparent 60%),
-      radial-gradient(ellipse 50% 30% at 90% 80%, hsl(188 92% 56% / 0.12), transparent 60%),
-      radial-gradient(ellipse 40% 30% at 10% 70%, hsl(330 80% 60% / 0.1), transparent 60%);
-    background-attachment: fixed;
     min-height: 100vh;
   }
 
   body {
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv11";
+    font-feature-settings: "ss01", "cv11", "cv05";
+    letter-spacing: -0.005em;
   }
 
   h1, h2, h3, h4 {
-    font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    font-family: var(--font-sans);
+    letter-spacing: -0.025em;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.4);
+    color: hsl(var(--foreground));
   }
 }
 
 @layer utilities {
-  .text-gradient {
-    background-image: linear-gradient(120deg, hsl(263 90% 75%), hsl(188 92% 65%) 50%, hsl(330 80% 70%));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  .font-mono {
+    font-family: var(--font-mono);
+    font-feature-settings: "zero", "ss01";
+  }
+
+  .font-serif {
+    font-family: var(--font-display);
+  }
+
+  .editorial {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: -0.02em;
   }
 
   .surface {
-    background: linear-gradient(180deg, hsl(240 12% 9% / 0.95), hsl(240 14% 5% / 0.85));
-    border: 1px solid hsl(240 8% 18%);
+    background: hsl(240 6% 8%);
+    border: 1px solid hsl(240 5% 16%);
+  }
+
+  .surface-raised {
+    background: hsl(240 6% 9%);
+    border: 1px solid hsl(240 5% 18%);
     box-shadow:
-      inset 0 1px 0 hsl(240 6% 100% / 0.04),
-      0 30px 60px -30px hsl(240 100% 0% / 0.6);
-    backdrop-filter: blur(20px);
+      inset 0 1px 0 hsl(0 0% 100% / 0.03),
+      0 1px 0 hsl(0 0% 0% / 0.4);
   }
 
   .surface-glow {
-    background:
-      radial-gradient(120% 80% at 0% 0%, hsl(263 83% 66% / 0.18), transparent 50%),
-      radial-gradient(120% 80% at 100% 100%, hsl(188 92% 56% / 0.15), transparent 50%),
-      hsl(240 12% 7% / 0.9);
-    border: 1px solid hsl(240 8% 20%);
-    backdrop-filter: blur(24px);
+    background: hsl(240 6% 8%);
+    border: 1px solid hsl(240 5% 18%);
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.04);
   }
 
   .grid-pattern {
     background-image:
-      linear-gradient(hsl(240 8% 18% / 0.6) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(240 8% 18% / 0.6) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 30%, transparent 80%);
+      linear-gradient(hsl(240 5% 14% / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(240 5% 14% / 0.5) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 70% 50% at 50% 30%, black 20%, transparent 90%);
   }
 
-  .ring-glow {
+  .hairline {
+    background: linear-gradient(90deg, transparent, hsl(240 5% 30%) 20%, hsl(240 5% 30%) 80%, transparent);
+    height: 1px;
+  }
+
+  .ticker {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .num-pin {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .num-pin::before {
+    content: "";
+    width: 0.4rem;
+    height: 0.4rem;
+    background: hsl(var(--primary));
+    border-radius: 999px;
+  }
+
+  .frame-corners {
+    position: relative;
+  }
+
+  .frame-corners::before,
+  .frame-corners::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: hsl(var(--primary));
+    border-style: solid;
+    border-width: 0;
+  }
+
+  .frame-corners::before {
+    top: -1px;
+    left: -1px;
+    border-top-width: 1px;
+    border-left-width: 1px;
+  }
+
+  .frame-corners::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+  }
+
+  .grain {
+    position: relative;
+  }
+
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity: 0.5;
+    mix-blend-mode: overlay;
+    border-radius: inherit;
+  }
+
+  .ring-primary-soft {
     box-shadow:
-      0 0 0 1px hsl(263 83% 66% / 0.5),
-      0 20px 60px -20px hsl(263 83% 66% / 0.5);
+      0 0 0 1px hsl(var(--primary) / 0.5),
+      inset 0 0 0 1px hsl(var(--primary) / 0.18);
   }
 }

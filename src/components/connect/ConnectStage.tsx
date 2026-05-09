@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Bluetooth, ShieldCheck, Sparkles, ChevronRight } from "lucide-react";
+import { Bluetooth, ShieldCheck, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useFireflyDelegation } from "@/hooks/useFireflyDelegation";
@@ -46,32 +46,37 @@ export function ConnectStage() {
   const placeholder = isPlaceholderDelegate();
 
   return (
-    <section className="container grid items-center gap-12 py-12 lg:grid-cols-[1fr_1.1fr]">
-      <div className="space-y-8">
-        <div>
-          <Badge variant="primary">
-            <Bluetooth className="h-3.5 w-3.5" /> Web Bluetooth required
-          </Badge>
-          <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight md:text-5xl">
+    <section className="container grid items-center gap-14 py-16 lg:grid-cols-[1fr_1.05fr]">
+      <div className="space-y-10">
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <span className="num-pin">Step 01 / Pair Device</span>
+            <Badge variant="primary">
+              <Bluetooth className="h-3.5 w-3.5" /> Web Bluetooth
+            </Badge>
+          </div>
+          <h1 className="text-[clamp(2.25rem,5vw,4rem)] font-semibold leading-[0.98] tracking-tightest">
             One signature.
             <br />
-            <span className="text-gradient">Smart account, instantly.</span>
+            <span className="editorial text-accent">Smart account,</span>
+            <br />
+            instantly.
           </h1>
-          <p className="mt-4 max-w-md text-muted-foreground">
+          <p className="max-w-md text-[1rem] leading-relaxed text-muted-foreground">
             Connect your hardware wallet, then approve a single EIP-7702 authorization. We handle
             the nonce, broadcast, and confirmation behind the scenes.
           </p>
         </div>
 
         {bluetoothSupported === false ? (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             Web Bluetooth isn't available in this browser. Open this page in Chrome or Edge on a
             desktop OS to continue.
           </div>
         ) : null}
 
         {placeholder ? (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
             <strong className="font-semibold">Configuration needed.</strong> Edit{" "}
             <code className="font-mono text-xs">src/lib/config.ts</code> and set{" "}
             <code className="font-mono text-xs">DELEGATE_CONTRACT_ADDRESS</code> to the smart-account
@@ -81,7 +86,7 @@ export function ConnectStage() {
 
         <motion.div
           layout
-          className="rounded-2xl surface-glow p-6 space-y-6"
+          className="rounded-xl surface-glow p-7 space-y-6"
           transition={{ duration: 0.4, type: "spring", stiffness: 220, damping: 26 }}
         >
           <Step
@@ -103,14 +108,14 @@ export function ConnectStage() {
               disabled={isConnecting || bluetoothSupported === false}
             >
               {isConnecting ? "Pairing…" : "Connect hardware wallet"}
-              {!isConnecting ? <ChevronRight className="h-4 w-4" /> : null}
+              {!isConnecting ? <ArrowRight className="h-4 w-4" /> : null}
             </Button>
           ) : null}
 
           {isConnected && state.device ? (
             <>
-              <div className="rounded-xl border border-border/70 bg-secondary/40 px-4 py-3 text-sm">
-                <div className="text-muted-foreground text-xs uppercase tracking-wider">
+              <div className="rounded-md border border-border bg-secondary/30 px-4 py-3 text-sm">
+                <div className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
                   Connected wallet
                 </div>
                 <div className="mt-1 font-mono text-base">
@@ -153,7 +158,7 @@ export function ConnectStage() {
         </motion.div>
 
         <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
-          <ShieldCheck className="h-3.5 w-3.5 text-accent" />
+          <ShieldCheck className="h-3.5 w-3.5 text-primary" />
           Your hardware wallet always signs the high-authority action. The relayer only pays gas.
         </p>
       </div>
@@ -191,21 +196,21 @@ function Step({
   active: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex items-start gap-4">
       <span
-        className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+        className={`mt-0.5 flex h-8 w-8 items-center justify-center border font-mono text-[0.7rem] tracking-[0.14em] ${
           done
-            ? "bg-emerald-500/15 text-emerald-400"
+            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
             : active
-              ? "bg-primary/15 text-primary"
-              : "bg-secondary text-muted-foreground"
+              ? "border-primary/50 bg-primary/10 text-primary"
+              : "border-border bg-secondary text-muted-foreground"
         }`}
       >
-        {done ? "✓" : n}
+        {done ? "✓" : `0${n}`}
       </span>
       <div className="flex-1 min-w-0">
-        <div className="text-base font-semibold">{title}</div>
-        <div className="text-sm text-muted-foreground">{description}</div>
+        <div className="text-[0.95rem] font-semibold tracking-tight">{title}</div>
+        <div className="mt-1 text-sm text-muted-foreground">{description}</div>
       </div>
     </div>
   );

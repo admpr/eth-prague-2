@@ -278,16 +278,19 @@ export function AgentReadyGate({ authority, initialReady = false, children }: Ag
       transition={{ duration: 0.5 }}
       className="container py-10"
     >
-      <div className="rounded-2xl surface-glow p-8">
-        <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="space-y-5">
-            <Badge variant={readiness?.status === "validator-missing" ? "primary" : "muted"}>
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Agent readiness check
-            </Badge>
+      <div className="rounded-xl surface-glow p-8 md:p-10">
+        <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <span className="num-pin">Readiness Check</span>
+              <Badge variant={readiness?.status === "validator-missing" ? "primary" : "muted"}>
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Pending
+              </Badge>
+            </div>
 
             <div className="space-y-3">
-              <h1 className="font-display text-3xl font-semibold tracking-tight md:text-4xl">
+              <h1 className="text-[clamp(1.75rem,3vw,2.5rem)] font-semibold leading-[1.04] tracking-tightest">
                 {readiness ? statusCopy[readiness.status].title : "Checking wallet readiness"}
               </h1>
               <p className="max-w-xl text-muted-foreground">
@@ -335,7 +338,7 @@ export function AgentReadyGate({ authority, initialReady = false, children }: Ag
             </div>
 
             {activationError ? (
-              <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {activationError}
               </div>
             ) : null}
@@ -345,7 +348,7 @@ export function AgentReadyGate({ authority, initialReady = false, children }: Ag
                 href={`${BASE_SEPOLIA_EXPLORER_TX}/${pendingHash}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-accent"
+                className="inline-flex items-center gap-2 text-sm text-primary underline-offset-4 hover:underline"
               >
                 View activation transaction <ExternalLink className="h-3.5 w-3.5" />
               </a>
@@ -412,23 +415,23 @@ function StatusRow({
 }) {
   const Icon = done ? CheckCircle2 : active ? Cpu : AlertTriangle;
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-secondary/40 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-md border border-border bg-secondary/30 px-4 py-3">
       <span
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border ${
           done
-            ? "bg-emerald-500/10 text-emerald-400"
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
             : active
-              ? "bg-primary/10 text-primary"
-              : "bg-amber-500/10 text-amber-300"
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-amber-500/30 bg-amber-500/10 text-amber-300"
         }`}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="h-4 w-4" strokeWidth={1.5} />
       </span>
       <div className="min-w-0">
-        <div className="text-[0.65rem] uppercase tracking-wider text-muted-foreground">
+        <div className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted-foreground">
           {label}
         </div>
-        <div className="mt-0.5 truncate font-mono text-sm">{value}</div>
+        <div className="mt-1 truncate font-mono text-sm">{value}</div>
       </div>
     </div>
   );
