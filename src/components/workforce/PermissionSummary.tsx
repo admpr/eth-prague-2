@@ -9,26 +9,22 @@ import {
 } from "@/hooks/useAgentPermissionState";
 
 export function PermissionSummary({ employee }: { employee: AgentEmployee }) {
+  const now = Math.floor(Date.now() / 1000);
+  const status = statusBadge(employee, now);
+  const enabledTokenLimits = employee.tokenLimits.filter((limit) => limit.enabled);
   const nativeLimit = employee.nativeLimitEnabled
     ? `${formatLimitAmount(employee.nativeLimit.amount, 18)} ETH / ${periodLabel(
         employee.nativeLimit.period,
       )}`
-    : "No ETH value";
+    : "No ETH limit";
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        {employee.expired ? (
-          <Badge variant="muted">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Expired
-          </Badge>
-        ) : (
-          <Badge variant="success">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Active
-          </Badge>
-        )}
+        <Badge variant={status.variant}>
+          <ShieldCheck className="h-3.5 w-3.5" />
+          {status.label}
+        </Badge>
 
         {employee.requireAllowedCall ? (
           <Badge variant="primary">
@@ -52,9 +48,9 @@ export function PermissionSummary({ employee }: { employee: AgentEmployee }) {
         <SummaryRow label="Window" value={validityLabel(employee)} />
       </dl>
 
-      {employee.tokenLimits.length > 0 ? (
-        <dl className="space-y-2 text-sm">
-          {employee.tokenLimits.map((limit) => (
+      <dl className="space-y-2 text-sm">
+        {enabledTokenLimits.length > 0 ? (
+          enabledTokenLimits.map((limit) => (
             <SummaryRow
               key={limit.token}
               label={limit.symbol}
@@ -62,11 +58,25 @@ export function PermissionSummary({ employee }: { employee: AgentEmployee }) {
                 limit.limit.period,
               )}`}
             />
-          ))}
-        </dl>
-      ) : null}
+          ))
+        ) : (
+          <SummaryRow label="Tokens" value="No token limits" />
+        )}
+      </dl>
     </div>
   );
+}
+
+function statusBadge(
+  employee: AgentEmployee,
+  now: number,
+): { label: string; variant: "muted" | "primary" | "success" } {
+  if (!employee.active) return { label: "Inactive", variant: "muted" };
+  if (employee.validAfter !== 0 && now < employee.validAfter) {
+    return { label: "Scheduled", variant: "primary" };
+  }
+  if (employee.expired) return { label: "Expired", variant: "muted" };
+  return { label: "Active", variant: "success" };
 }
 
 function SummaryRow({
@@ -98,6 +108,15 @@ function periodLabel(period: number): string {
 }
 
 function validityLabel(employee: AgentEmployee): string {
-  if (employee.validUntil === 0) return "No expiry";
-  return `Until ${new Date(employee.validUntil * 1000).toLocaleString()}`;
+  const start = employee.validAfter === 0 ? undefined : formatTimestamp(employee.validAfter);
+  const end = employee.validUntil === 0 ? undefined : formatTimestamp(employee.validUntil);
+
+  if (!start && !end) return "No expiry";
+  if (start && !end) return `From ${start}`;
+  if (!start && end) return `Until ${end}`;
+  return `${start} - ${end}`;
+}
+
+function formatTimestamp(seconds: number): string {
+  return `${new Date(seconds * 1000).toISOString().replace("T", " ").slice(0, 16)} UTC`;
 }
