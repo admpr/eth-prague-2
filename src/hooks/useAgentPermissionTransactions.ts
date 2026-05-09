@@ -33,28 +33,43 @@ export function useAgentPermissionTransactions(authority?: string) {
   const [state, setState] = useState<PermissionTxState>({ step: "idle" });
   const fireflyRef = useRef<FireflyClient | undefined>(undefined);
   const cancelledRef = useRef(false);
+  const operationIdRef = useRef(0);
 
   useEffect(() => {
     return () => {
       cancelledRef.current = true;
+      operationIdRef.current += 1;
       void fireflyRef.current?.destroy().catch(() => undefined);
     };
   }, []);
 
-  const setTxState = useCallback((next: PermissionTxState) => {
-    if (!cancelledRef.current) {
+  const setTxState = useCallback((operationId: number, next: PermissionTxState) => {
+    if (!cancelledRef.current && operationIdRef.current === operationId) {
       setState(next);
     }
   }, []);
 
   const reset = useCallback(() => {
+    operationIdRef.current += 1;
     void fireflyRef.current?.destroy().catch(() => undefined);
     fireflyRef.current = undefined;
-    setTxState({ step: "idle" });
-  }, [setTxState]);
+    if (!cancelledRef.current) {
+      setState({ step: "idle" });
+    }
+  }, []);
 
   const executeValidatorTransaction = useCallback(
     async ({ validator, data }: { validator: Address; data: Hex }): Promise<Hex> => {
+      const operationId = operationIdRef.current + 1;
+      operationIdRef.current = operationId;
+      let knownHash: Hex | undefined;
+      const isCurrentOperation = () => !cancelledRef.current && operationIdRef.current === operationId;
+      const ensureCurrentOperation = () => {
+        if (!isCurrentOperation()) {
+          throw new Error("Permission transaction was superseded");
+        }
+      };
+
       try {
         const account = normalizeAddress(authority);
         if (!account) {
@@ -62,13 +77,19 @@ export function useAgentPermissionTransactions(authority?: string) {
         }
         const normalizedValidator = getAddress(validator);
 
-        setTxState({ step: "connecting" });
+        setTxState(operationId, { step: "connecting" });
         await fireflyRef.current?.destroy().catch(() => undefined);
+        ensureCurrentOperation();
         fireflyRef.current = undefined;
         const firefly = await FireflyClient.discover(true);
+        if (!isCurrentOperation()) {
+          await firefly.destroy().catch(() => undefined);
+          ensureCurrentOperation();
+        }
         fireflyRef.current = firefly;
 
         const accounts = await firefly.sendMessage("ffx_accounts", []);
+        ensureCurrentOperation();
         if (!Array.isArray(accounts) || !(accounts[0] instanceof Uint8Array)) {
           throw new Error("Hardware wallet returned an invalid account response");
         }
@@ -80,15 +101,18 @@ export function useAgentPermissionTransactions(authority?: string) {
           );
         }
 
-        setTxState({ step: "preparing" });
+        setTxState(operationId, { step: "preparing" });
         const nonce = await getPendingNonce(account);
+        ensureCurrentOperation();
         const fees = await baseSepoliaPublicClient.estimateFeesPerGas();
+        ensureCurrentOperation();
         const estimatedGas = await baseSepoliaPublicClient.estimateGas({
           account,
           to: normalizedValidator,
           value: 0n,
           data,
         });
+        ensureCurrentOperation();
 
         const tx: FireflyTransactionRequest = {
           chainId: BigInt(BASE_SEPOLIA_CHAIN_ID),
@@ -101,45 +125,49 @@ export function useAgentPermissionTransactions(authority?: string) {
           data,
         };
 
-        setTxState({ step: "awaitingDevice" });
+        setTxState(operationId, { step: "awaitingDevice" });
         const rawSignature = await firefly.sendMessage(
           "ffx_signTransaction",
           toFireflyTransactionParams(tx),
         );
+        ensureCurrentOperation();
         const rawTransaction = serializeSignedFireflyTransaction(
           tx,
           fromFireflyTransactionSignature(rawSignature),
         );
 
-        setTxState({ step: "broadcasting" });
+        setTxState(operationId, { step: "broadcasting" });
         const response = await fetch("/api/broadcast-raw-transaction", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ rawTransaction }),
         });
+        ensureCurrentOperation();
         const payload = await parseBroadcastPayload(response);
+        ensureCurrentOperation();
         if (!response.ok) {
           throw new Error(readBroadcastError(payload) ?? `Broadcast failed (HTTP ${response.status})`);
         }
 
-        const hash = readBroadcastHash(payload);
-        setTxState({ step: "broadcasting", hash });
+        knownHash = readBroadcastHash(payload);
+        setTxState(operationId, { step: "broadcasting", hash: knownHash });
 
         const receipt = await baseSepoliaPublicClient.waitForTransactionReceipt({
-          hash,
+          hash: knownHash,
           pollingInterval: 2000,
           retryCount: 60,
           retryDelay: 2000,
         });
+        ensureCurrentOperation();
         if (receipt.status !== "success") {
           throw new Error("Permission transaction reverted on chain");
         }
 
-        setTxState({ step: "confirmed", hash });
-        return hash;
+        setTxState(operationId, { step: "confirmed", hash: knownHash });
+        return knownHash;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        setTxState({ step: "error", error: message });
+        setTxState(operationId, { step: "error", hash: knownHash, error: message });
         throw error;
       }
     },

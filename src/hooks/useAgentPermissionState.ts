@@ -217,12 +217,16 @@ function readMetadataIndex(account: Address, validator: Address) {
     return indexEmployeeMetadata([]);
   }
 
-  const key = buildEmployeeMetadataStorageKey({
-    chainId: BASE_SEPOLIA_CHAIN_ID,
-    account,
-    validator,
-  });
-  return indexEmployeeMetadata(readEmployeeMetadata(window.localStorage, key));
+  try {
+    const key = buildEmployeeMetadataStorageKey({
+      chainId: BASE_SEPOLIA_CHAIN_ID,
+      account,
+      validator,
+    });
+    return indexEmployeeMetadata(readEmployeeMetadata(window.localStorage, key));
+  } catch {
+    return new Map();
+  }
 }
 
 function normalizeLimit(limit: RawOnchainLimit): OnchainLimit {
