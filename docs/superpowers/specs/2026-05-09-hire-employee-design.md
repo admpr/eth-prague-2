@@ -49,14 +49,16 @@ later become shortcuts into this same flow.
 6. The app encodes `setPermission(PermissionConfig)` on the validator for that
    signer.
 7. The hardware wallet signs the management transaction immediately.
-8. The app broadcasts the signed transaction and waits for confirmation.
-9. After confirmation, the app reveals the private key exactly once.
-10. The app refreshes the onchain signer list and stores only local metadata in
-    browser storage.
+8. The app broadcasts the signed transaction.
+9. After broadcast succeeds, the app reveals the private key exactly once while
+   it waits for confirmation in the background.
+10. After confirmation, the app stores only local metadata in browser storage
+    and refreshes the onchain signer list until the new signer is visible.
 
 The private key is generated before the transaction so the public signer address
-can be registered. The private key is not shown until the onchain registration is
-confirmed.
+can be registered. The private key is shown after broadcast, not after
+confirmation, so the user can save it even if the confirmation refresh changes
+the employee list.
 
 ## Permission Model
 
@@ -234,7 +236,9 @@ transaction from that address to the validator gives the validator the expected
 
 ## One-Time Private Key Reveal
 
-The reveal step happens only after a successful `setPermission` confirmation.
+The reveal step happens after the signed `setPermission` transaction is
+broadcast successfully. The reveal screen stays open while confirmation
+continues in the background and shows a done state once the transaction confirms.
 
 The UI should clearly communicate:
 

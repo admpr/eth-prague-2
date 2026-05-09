@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -22,13 +22,18 @@ import {
 } from "@/components/ui/dialog";
 import { AgentAvatar } from "@/components/workforce/AgentAvatar";
 import { EmployeeEmptyState } from "@/components/workforce/EmployeeEmptyState";
-import { HireEmployeeDialog } from "@/components/workforce/HireEmployeeDialog";
+import {
+  HireEmployeeDialog,
+  type HireEmployeeCompletion,
+} from "@/components/workforce/HireEmployeeDialog";
 import { PermissionSummary } from "@/components/workforce/PermissionSummary";
+import { PresetGallery } from "@/components/workforce/PresetGallery";
 import { type AgentEmployee } from "@/hooks/useAgentPermissionState";
 import { useAgentPermissionTransactions } from "@/hooks/useAgentPermissionTransactions";
 import {
   buildRemovePermissionCalldata,
   employeeSnapshotToDraft,
+  type PermissionDraft,
 } from "@/lib/agent-permissions";
 import { BASE_SEPOLIA_CHAIN_ID } from "@/lib/config";
 import {
@@ -51,6 +56,76 @@ type EmployeeStatus = {
   variant: "muted" | "primary" | "success";
 };
 
+type EmployeeRefresh = () => Promise<AgentEmployee[] | void> | AgentEmployee[] | void;
+
+const EMPLOYEE_REFRESH_ATTEMPTS = 8;
+const EMPLOYEE_REFRESH_DELAY_MS = 1500;
+
+export async function refreshUntilEmployeeVisible({
+  attempts = EMPLOYEE_REFRESH_ATTEMPTS,
+  delayMs = EMPLOYEE_REFRESH_DELAY_MS,
+  expectedSigner,
+  refresh,
+  wait = sleep,
+}: {
+  refresh: EmployeeRefresh;
+  expectedSigner?: Address;
+  attempts?: number;
+  delayMs?: number;
+  wait?: (ms: number) => Promise<void>;
+}): Promise<AgentEmployee[] | undefined> {
+  const normalizedExpectedSigner = expectedSigner?.toLowerCase();
+  const maxAttempts = normalizedExpectedSigner ? attempts : 1;
+  let latest: AgentEmployee[] | undefined;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const result = await refresh();
+    latest = Array.isArray(result) ? result : undefined;
+
+    if (!normalizedExpectedSigner || employeeListContainsSigner(latest, normalizedExpectedSigner)) {
+      return latest;
+    }
+
+    if (attempt < maxAttempts - 1) {
+      await wait(delayMs);
+    }
+  }
+
+  return latest;
+}
+
+export async function refreshUntilEmployeeHidden({
+  attempts = EMPLOYEE_REFRESH_ATTEMPTS,
+  delayMs = EMPLOYEE_REFRESH_DELAY_MS,
+  refresh,
+  removedSigner,
+  wait = sleep,
+}: {
+  refresh: EmployeeRefresh;
+  removedSigner: Address;
+  attempts?: number;
+  delayMs?: number;
+  wait?: (ms: number) => Promise<void>;
+}): Promise<AgentEmployee[] | undefined> {
+  const normalizedRemovedSigner = removedSigner.toLowerCase();
+  let latest: AgentEmployee[] | undefined;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const result = await refresh();
+    latest = Array.isArray(result) ? result : undefined;
+
+    if (!employeeListContainsSigner(latest, normalizedRemovedSigner)) {
+      return latest;
+    }
+
+    if (attempt < attempts - 1) {
+      await wait(delayMs);
+    }
+  }
+
+  return latest;
+}
+
 export function EmployeeManager({
   authority,
   validator,
@@ -60,6 +135,7 @@ export function EmployeeManager({
   refresh,
 }: EmployeeManagerProps) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [createDraft, setCreateDraft] = useState<PermissionDraft | undefined>();
   const [viewEmployee, setViewEmployee] = useState<AgentEmployee | undefined>();
   const [updateEmployee, setUpdateEmployee] = useState<AgentEmployee | undefined>();
   const [revokeEmployee, setRevokeEmployee] = useState<AgentEmployee | undefined>();
@@ -85,6 +161,23 @@ export function EmployeeManager({
       setRefreshing(false);
     }
   }, [refresh]);
+
+  const openBlankCreate = useCallback(() => {
+    setCreateDraft(undefined);
+    setCreateOpen(true);
+  }, []);
+
+  const openPresetCreate = useCallback((draft: PermissionDraft) => {
+    setCreateDraft(draft);
+    setCreateOpen(true);
+  }, []);
+
+  const handleCreateOpenChange = useCallback((open: boolean) => {
+    setCreateOpen(open);
+    if (!open) {
+      setCreateDraft(undefined);
+    }
+  }, []);
 
   const handleRevokeOpen = useCallback(
     (employee: AgentEmployee) => {
@@ -139,7 +232,10 @@ export function EmployeeManager({
         },
       );
 
-      await refresh();
+      await refreshUntilEmployeeHidden({
+        refresh,
+        removedSigner: revokeEmployee.signer,
+      });
       setRevokeEmployee(undefined);
       resetRevokeTransaction();
     } catch (caught) {
@@ -157,89 +253,89 @@ export function EmployeeManager({
     validator,
   ]);
 
-  const completeDialogTransaction = useCallback(async () => {
-    await refresh();
+  const completeDialogTransaction = useCallback(async (completion: HireEmployeeCompletion) => {
+    await refreshUntilEmployeeVisible({
+      refresh,
+      expectedSigner: completion.kind === "create" ? completion.signer : undefined,
+    });
   }, [refresh]);
 
+  let content: ReactNode;
   if (loading) {
-    return <EmployeeLoadingState />;
-  }
-
-  if (employees.length === 0) {
-    return (
+    content = <EmployeeLoadingState />;
+  } else if (employees.length === 0) {
+    content = (
       <>
         {error ? (
           <section className="container pb-0 pt-6">
             <DestructivePanel message={error} />
           </section>
         ) : null}
-        <EmployeeEmptyState onHire={() => setCreateOpen(true)} />
-        <HireEmployeeDialog
-          open={createOpen}
-          onOpenChange={setCreateOpen}
-          authority={authority}
-          validator={validator}
-          mode={{ kind: "create" }}
-          onComplete={completeDialogTransaction}
-        />
+        <EmployeeEmptyState onHire={openBlankCreate} />
       </>
+    );
+  } else {
+    content = (
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="container py-12"
+      >
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="font-display text-2xl font-semibold tracking-tight">Employees</h2>
+              <p className="text-sm text-muted-foreground">
+                Manage scoped agent signers for this smart account.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={runRefresh}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                {refreshing ? "Refreshing" : "Refresh"}
+              </Button>
+              <Button type="button" onClick={openBlankCreate}>
+                <UserPlus className="h-4 w-4" />
+                Hire employee
+              </Button>
+            </div>
+          </div>
+
+          {error ? <DestructivePanel message={error} /> : null}
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {employees.map((employee, index) => (
+              <EmployeeCard
+                key={employee.signer}
+                employee={employee}
+                index={index}
+                onView={() => setViewEmployee(employee)}
+                onUpdate={() => setUpdateEmployee(employee)}
+                onRevoke={() => handleRevokeOpen(employee)}
+              />
+            ))}
+          </div>
+        </div>
+      </motion.section>
     );
   }
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.1 }}
-      className="container py-12"
-    >
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 className="font-display text-2xl font-semibold tracking-tight">Employees</h2>
-            <p className="text-sm text-muted-foreground">
-              Manage scoped agent signers for this smart account.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={runRefresh}
-              disabled={refreshing}
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-              {refreshing ? "Refreshing" : "Refresh"}
-            </Button>
-            <Button type="button" onClick={() => setCreateOpen(true)}>
-              <UserPlus className="h-4 w-4" />
-              Hire employee
-            </Button>
-          </div>
-        </div>
-
-        {error ? <DestructivePanel message={error} /> : null}
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          {employees.map((employee, index) => (
-            <EmployeeCard
-              key={employee.signer}
-              employee={employee}
-              index={index}
-              onView={() => setViewEmployee(employee)}
-              onUpdate={() => setUpdateEmployee(employee)}
-              onRevoke={() => handleRevokeOpen(employee)}
-            />
-          ))}
-        </div>
-      </div>
-
+    <>
+      {content}
+      <PresetGallery onHirePreset={openPresetCreate} />
       <HireEmployeeDialog
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={handleCreateOpenChange}
         authority={authority}
         validator={validator}
-        mode={{ kind: "create" }}
+        mode={{ kind: "create", draft: createDraft }}
         onComplete={completeDialogTransaction}
       />
       {updateEmployee && updateDraft ? (
@@ -273,7 +369,7 @@ export function EmployeeManager({
         error={revokeError ?? revokeTxState.error}
         explorerHref={explorerHref}
       />
-    </motion.section>
+    </>
   );
 }
 
@@ -481,12 +577,28 @@ function employeeStatus(employee: AgentEmployee): EmployeeStatus {
   return { label: "Active", variant: "success" };
 }
 
+function employeeListContainsSigner(
+  employees: AgentEmployee[] | undefined,
+  normalizedExpectedSigner: string,
+): boolean {
+  return Boolean(
+    employees?.some((employee) => employee.signer.toLowerCase() === normalizedExpectedSigner),
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 function isSubmittingStep(step: string): boolean {
   return (
     step === "connecting" ||
     step === "preparing" ||
     step === "awaitingDevice" ||
-    step === "broadcasting"
+    step === "broadcasting" ||
+    step === "confirming"
   );
 }
 

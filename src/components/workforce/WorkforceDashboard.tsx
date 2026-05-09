@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { getAddress, isAddress, type Address } from "viem";
 import { EmployeeManager } from "@/components/workforce/EmployeeManager";
-import { PresetGallery } from "@/components/workforce/PresetGallery";
 import { WorkforceHeader } from "@/components/workforce/WorkforceHeader";
 import { useAgentPermissionState } from "@/hooks/useAgentPermissionState";
 
@@ -44,7 +43,6 @@ export function WorkforceDashboard({ authority }: WorkforceDashboardProps) {
           refresh={refresh}
         />
       ) : null}
-      <PresetGallery />
     </>
   );
 }

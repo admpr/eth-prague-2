@@ -25,6 +25,7 @@ export type PermissionTxStep =
   | "preparing"
   | "awaitingDevice"
   | "broadcasting"
+  | "confirming"
   | "confirmed"
   | "error";
 
@@ -36,6 +37,12 @@ export type PermissionTxState = {
 
 export type PermissionTransactionError = Error & {
   hash?: Hex;
+};
+
+type ExecuteValidatorTransactionOptions = {
+  validator: Address;
+  data: Hex;
+  onBroadcast?: (hash: Hex) => void;
 };
 
 export function useAgentPermissionTransactions(authority?: string) {
@@ -69,7 +76,7 @@ export function useAgentPermissionTransactions(authority?: string) {
   }, []);
 
   const executeValidatorTransaction = useCallback(
-    async ({ validator, data }: { validator: Address; data: Hex }): Promise<Hex> => {
+    async ({ validator, data, onBroadcast }: ExecuteValidatorTransactionOptions): Promise<Hex> => {
       const operationId = operationIdRef.current + 1;
       operationIdRef.current = operationId;
       let knownHash: Hex | undefined;
@@ -168,6 +175,10 @@ export function useAgentPermissionTransactions(authority?: string) {
         if (broadcastHash && broadcastHash.toLowerCase() !== knownHash.toLowerCase()) {
           throw new Error("Broadcast returned an unexpected transaction hash");
         }
+
+        setTxState(operationId, { step: "confirming", hash: knownHash });
+        onBroadcast?.(knownHash);
+        ensureCurrentOperation();
 
         const receipt = await waitForSubmittedTransactionReceipt({ hash: knownHash });
         ensureCurrentOperation();

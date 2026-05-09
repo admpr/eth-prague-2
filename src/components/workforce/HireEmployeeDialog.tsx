@@ -13,11 +13,15 @@ import {
 import {
   AlertTriangle,
   CalendarRange,
+  CheckCircle2,
   Coins,
   Copy,
+  Eye,
+  EyeOff,
   ExternalLink,
   Info,
   KeyRound,
+  Loader2,
   Plus,
   Save,
   ShieldCheck,
@@ -61,9 +65,14 @@ export type HireEmployeeDialogProps = {
   authority: Address;
   validator: Address;
   mode:
-    | { kind: "create" }
+    | { kind: "create"; draft?: PermissionDraft }
     | { kind: "update"; draft: PermissionDraft; avatarSeed: string };
-  onComplete(): Promise<void> | void;
+  onComplete(completion: HireEmployeeCompletion): Promise<void> | void;
+};
+
+export type HireEmployeeCompletion = {
+  kind: "create" | "update";
+  signer: Address;
 };
 
 const inputClass =
@@ -84,13 +93,18 @@ export function HireEmployeeDialog({
   mode,
   onComplete,
 }: HireEmployeeDialogProps) {
+  const createModeDraft = mode.kind === "create" ? mode.draft : undefined;
   const updateModeDraft = mode.kind === "update" ? mode.draft : undefined;
   const updateModeAvatarSeed = mode.kind === "update" ? mode.avatarSeed : undefined;
-  const initialDraft = useMemo(() => draftFromMode(mode), [mode.kind, updateModeDraft]);
+  const initialDraft = useMemo(
+    () => draftFromMode(mode),
+    [createModeDraft, mode.kind, updateModeDraft],
+  );
   const [draft, setDraft] = useState<PermissionDraft>(() => initialDraft);
   const [pendingCreatePrivateKey, setPendingCreatePrivateKey] = useState<Hex | undefined>();
   const [pendingCreateBroadcastHash, setPendingCreateBroadcastHash] = useState<Hex | undefined>();
   const [revealedPrivateKey, setRevealedPrivateKey] = useState<Hex | undefined>();
+  const [revealedEmployeeName, setRevealedEmployeeName] = useState<string | undefined>();
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | undefined>();
@@ -106,6 +120,7 @@ export function HireEmployeeDialog({
       setPendingCreatePrivateKey(undefined);
       setPendingCreateBroadcastHash(undefined);
       setRevealedPrivateKey(undefined);
+      setRevealedEmployeeName(undefined);
       setCopied(false);
       setLocalError(undefined);
       resetTransaction();
@@ -116,6 +131,7 @@ export function HireEmployeeDialog({
     setPendingCreatePrivateKey(undefined);
     setPendingCreateBroadcastHash(undefined);
     setRevealedPrivateKey(undefined);
+    setRevealedEmployeeName(undefined);
     setCopied(false);
     setLocalError(undefined);
     resetTransaction();
@@ -163,24 +179,35 @@ export function HireEmployeeDialog({
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      if (!nextOpen && (revealedPrivateKey || isSubmitting || hasPendingBroadcastKey)) return;
+      if (
+        !nextOpen &&
+        (isSubmitting ||
+          hasPendingBroadcastKey ||
+          (revealedPrivateKey && !canClosePrivateKeyReveal(txState.step)))
+      ) {
+        return;
+      }
       onOpenChange(nextOpen);
     },
-    [hasPendingBroadcastKey, isSubmitting, onOpenChange, revealedPrivateKey],
+    [hasPendingBroadcastKey, isSubmitting, onOpenChange, revealedPrivateKey, txState.step],
   );
 
   const closeReveal = useCallback(() => {
+    if (!canClosePrivateKeyReveal(txState.step, isSubmitting)) return;
+
     setPendingCreatePrivateKey(undefined);
     setPendingCreateBroadcastHash(undefined);
     setRevealedPrivateKey(undefined);
+    setRevealedEmployeeName(undefined);
     setCopied(false);
     onOpenChange(false);
-  }, [onOpenChange]);
+  }, [isSubmitting, onOpenChange, txState.step]);
 
   const discardGeneratedKey = useCallback(() => {
     setPendingCreatePrivateKey(undefined);
     setPendingCreateBroadcastHash(undefined);
     setRevealedPrivateKey(undefined);
+    setRevealedEmployeeName(undefined);
     setCopied(false);
     setLocalError(undefined);
     resetTransaction();
@@ -235,7 +262,19 @@ export function HireEmployeeDialog({
 
       let txHash: Hex;
       try {
-        txHash = await executeValidatorTransaction({ validator, data });
+        txHash = await executeValidatorTransaction({
+          validator,
+          data,
+          onBroadcast:
+            mode.kind === "create" && privateKey
+              ? (hash) => {
+                  setPendingCreateBroadcastHash(hash);
+                  setDraft((current) => ({ ...current, signer }));
+                  setRevealedEmployeeName(finalDraft.name);
+                  setRevealedPrivateKey(privateKey);
+                }
+              : undefined,
+        });
       } catch (error) {
         const broadcastHash = transactionHashFromError(error);
         if (mode.kind === "create" && privateKey && broadcastHash) {
@@ -266,7 +305,7 @@ export function HireEmployeeDialog({
           },
         );
 
-        await onComplete();
+        await onComplete({ kind: mode.kind, signer });
       } catch (error) {
         postTransactionError = true;
         setLocalError(error instanceof Error ? error.message : String(error));
@@ -277,6 +316,7 @@ export function HireEmployeeDialog({
       if (mode.kind === "create" && privateKey) {
         setPendingCreateBroadcastHash(undefined);
         setDraft((current) => ({ ...current, signer }));
+        setRevealedEmployeeName(finalDraft.name);
         setRevealedPrivateKey(privateKey);
       } else if (!postTransactionError) {
         onOpenChange(false);
@@ -336,8 +376,11 @@ export function HireEmployeeDialog({
 
           {revealedPrivateKey ? (
             <PrivateKeyReveal
+              agentName={revealedEmployeeName ?? draft.name}
+              completionPending={isSubmitting}
               copied={copied}
               privateKey={revealedPrivateKey}
+              txStep={txState.step}
               onCopy={copyPrivateKey}
               onClose={closeReveal}
             />
@@ -677,48 +720,105 @@ function SwitchControl({
   );
 }
 
-function PrivateKeyReveal({
+export function PrivateKeyReveal({
+  agentName,
+  completionPending = false,
   copied,
   privateKey,
+  txStep,
   onCopy,
   onClose,
 }: {
+  agentName: string;
+  completionPending?: boolean;
   copied: boolean;
   privateKey: Hex;
+  txStep: PermissionTxStep;
   onCopy(): void;
   onClose(): void;
 }) {
+  const [visible, setVisible] = useState(false);
+  const canClose = canClosePrivateKeyReveal(txStep, completionPending);
+  const statusLabel = privateKeyRevealStatusLabel(txStep, completionPending);
+
   return (
     <section className="space-y-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
-      <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300">
-          <KeyRound className="h-4 w-4" />
-        </span>
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-amber-100">Save this employee key now</h3>
-          <p className="text-sm text-amber-100/80">
-            This private key is not stored. If you lose it, you will need to create a new
-            employee key.
-          </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300">
+            <KeyRound className="h-4 w-4" />
+          </span>
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-amber-100">
+              Key for {agentName || "new employee"}
+            </h3>
+            <p className="text-sm text-amber-100/80">
+              This private key is not stored. Save it now before closing this dialog.
+            </p>
+          </div>
+        </div>
+        <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-background/50 px-3 py-1 text-xs font-medium text-amber-100">
+          {txStep === "confirmed" ? (
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+          ) : txStep === "error" ? (
+            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+          ) : (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-300" />
+          )}
+          {statusLabel}
         </div>
       </div>
 
-      <code className="block max-h-40 overflow-y-auto break-all rounded-lg border border-amber-500/30 bg-background/70 p-3 font-mono text-xs text-amber-50">
-        {privateKey}
-      </code>
+      <div className="space-y-3 rounded-lg border border-amber-500/30 bg-background/70 p-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-200">
+            <KeyRound className="h-4 w-4" />
+          </span>
+          <code className="min-w-0 flex-1 break-all font-mono text-xs text-amber-50">
+            {visible ? privateKey : maskPrivateKey(privateKey)}
+          </code>
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setVisible((current) => !current)}
+            aria-label={visible ? "Hide private key" : "Show private key"}
+          >
+            {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {visible ? "Hide key" : "Show key"}
+          </Button>
+          <Button type="button" variant="outline" onClick={onCopy}>
+            <Copy className="h-4 w-4" />
+            {copied ? "Copied" : "Copy key"}
+          </Button>
+        </div>
+      </div>
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" onClick={onCopy}>
-          <Copy className="h-4 w-4" />
-          {copied ? "Copied" : "Copy key"}
-        </Button>
-        <Button type="button" onClick={onClose}>
+        <Button type="button" onClick={onClose} disabled={!canClose}>
           <ShieldCheck className="h-4 w-4" />
-          I saved it
+          {canClose
+            ? "I saved it"
+            : txStep === "confirmed"
+              ? "Loading employee"
+              : "Waiting for confirmation"}
         </Button>
       </div>
     </section>
   );
+}
+
+function privateKeyRevealStatusLabel(step: PermissionTxStep, completionPending: boolean): string {
+  if (completionPending && step === "confirmed") return "Loading employee";
+  if (step === "confirmed") return "Done";
+  if (step === "error") return "Confirmation issue";
+  return "Waiting for confirmation";
+}
+
+function maskPrivateKey(privateKey: Hex): string {
+  return `${privateKey.slice(0, 6)}...${privateKey.slice(-4)}`;
 }
 
 function PendingBroadcastKeyWarning({
@@ -1128,6 +1228,10 @@ function draftFromMode(mode: HireEmployeeDialogProps["mode"]): PermissionDraft {
     return cloneDraft(mode.draft);
   }
 
+  if (mode.draft) {
+    return cloneDraft(mode.draft);
+  }
+
   return emptyDraft();
 }
 
@@ -1289,11 +1393,19 @@ function isSubmittingStep(step: PermissionTxStep): boolean {
     step === "connecting" ||
     step === "preparing" ||
     step === "awaitingDevice" ||
-    step === "broadcasting"
+    step === "broadcasting" ||
+    step === "confirming"
   );
 }
 
-function txStepLabel(step: PermissionTxStep): string {
+export function canClosePrivateKeyReveal(
+  step: PermissionTxStep,
+  completionPending = false,
+): boolean {
+  return !completionPending && (step === "confirmed" || step === "error");
+}
+
+export function txStepLabel(step: PermissionTxStep): string {
   switch (step) {
     case "connecting":
       return "Connecting hardware wallet";
@@ -1303,6 +1415,8 @@ function txStepLabel(step: PermissionTxStep): string {
       return "Approve on hardware wallet";
     case "broadcasting":
       return "Broadcasting on Base Sepolia";
+    case "confirming":
+      return "Waiting for confirmation";
     case "confirmed":
       return "Confirmed";
     case "error":
