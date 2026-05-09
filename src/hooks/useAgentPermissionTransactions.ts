@@ -29,6 +29,10 @@ export type PermissionTxState = {
   error?: string;
 };
 
+export type PermissionTransactionError = Error & {
+  hash?: Hex;
+};
+
 export function useAgentPermissionTransactions(authority?: string) {
   const [state, setState] = useState<PermissionTxState>({ step: "idle" });
   const fireflyRef = useRef<FireflyClient | undefined>(undefined);
@@ -166,9 +170,9 @@ export function useAgentPermissionTransactions(authority?: string) {
         setTxState(operationId, { step: "confirmed", hash: knownHash });
         return knownHash;
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        setTxState(operationId, { step: "error", hash: knownHash, error: message });
-        throw error;
+        const transactionError = withTransactionHash(error, knownHash);
+        setTxState(operationId, { step: "error", hash: knownHash, error: transactionError.message });
+        throw transactionError;
       }
     },
     [authority, setTxState],
@@ -212,6 +216,17 @@ function readBroadcastHash(payload: unknown): Hex {
     return payload.hash as Hex;
   }
   throw new Error("Broadcast did not return a transaction hash");
+}
+
+function withTransactionHash(error: unknown, hash: Hex | undefined): PermissionTransactionError {
+  const transactionError =
+    error instanceof Error
+      ? (error as PermissionTransactionError)
+      : (new Error(String(error)) as PermissionTransactionError);
+  if (hash) {
+    transactionError.hash = hash;
+  }
+  return transactionError;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

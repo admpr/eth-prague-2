@@ -40,7 +40,7 @@ import {
   type PermissionDraft,
   type TokenLimitDraft,
 } from "@/lib/agent-permissions";
-import { BASE_SEPOLIA_CHAIN_ID } from "@/lib/config";
+import { BASE_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_EXPLORER_TX } from "@/lib/config";
 import {
   buildEmployeeMetadataStorageKey,
   upsertEmployeeMetadata,
@@ -73,6 +73,8 @@ export function HireEmployeeDialog({
   onComplete,
 }: HireEmployeeDialogProps) {
   const [draft, setDraft] = useState<PermissionDraft>(() => draftFromMode(mode));
+  const [pendingCreatePrivateKey, setPendingCreatePrivateKey] = useState<Hex | undefined>();
+  const [pendingCreateBroadcastHash, setPendingCreateBroadcastHash] = useState<Hex | undefined>();
   const [revealedPrivateKey, setRevealedPrivateKey] = useState<Hex | undefined>();
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -86,6 +88,8 @@ export function HireEmployeeDialog({
 
   useEffect(() => {
     if (!open) {
+      setPendingCreatePrivateKey(undefined);
+      setPendingCreateBroadcastHash(undefined);
       setRevealedPrivateKey(undefined);
       setCopied(false);
       setLocalError(undefined);
@@ -94,6 +98,8 @@ export function HireEmployeeDialog({
     }
 
     setDraft(draftFromMode(mode));
+    setPendingCreatePrivateKey(undefined);
+    setPendingCreateBroadcastHash(undefined);
     setRevealedPrivateKey(undefined);
     setCopied(false);
     setLocalError(undefined);
@@ -123,6 +129,9 @@ export function HireEmployeeDialog({
   }, [authority, draft]);
 
   const isSubmitting = submitting || isSubmittingStep(txState.step);
+  const hasPendingBroadcastKey = Boolean(
+    pendingCreatePrivateKey && pendingCreateBroadcastHash && !revealedPrivateKey,
+  );
   const destructiveMessage = revealedPrivateKey
     ? txState.error ?? localError
     : validationError ?? txState.error ?? localError;
@@ -139,17 +148,29 @@ export function HireEmployeeDialog({
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      if (!nextOpen && (revealedPrivateKey || isSubmitting)) return;
+      if (!nextOpen && (revealedPrivateKey || isSubmitting || hasPendingBroadcastKey)) return;
       onOpenChange(nextOpen);
     },
-    [isSubmitting, onOpenChange, revealedPrivateKey],
+    [hasPendingBroadcastKey, isSubmitting, onOpenChange, revealedPrivateKey],
   );
 
   const closeReveal = useCallback(() => {
+    setPendingCreatePrivateKey(undefined);
+    setPendingCreateBroadcastHash(undefined);
     setRevealedPrivateKey(undefined);
     setCopied(false);
     onOpenChange(false);
   }, [onOpenChange]);
+
+  const discardGeneratedKey = useCallback(() => {
+    setPendingCreatePrivateKey(undefined);
+    setPendingCreateBroadcastHash(undefined);
+    setRevealedPrivateKey(undefined);
+    setCopied(false);
+    setLocalError(undefined);
+    resetTransaction();
+    onOpenChange(false);
+  }, [onOpenChange, resetTransaction]);
 
   const copyPrivateKey = useCallback(async () => {
     if (!revealedPrivateKey) return;
@@ -175,8 +196,10 @@ export function HireEmployeeDialog({
       let privateKey: Hex | undefined;
       let signer: Address;
       if (mode.kind === "create") {
-        privateKey = generatePrivateKey();
+        privateKey = pendingCreatePrivateKey ?? generatePrivateKey();
+        setPendingCreatePrivateKey(privateKey);
         signer = privateKeyToAccount(privateKey).address;
+        setDraft((current) => ({ ...current, signer }));
       } else {
         signer = mode.signer;
       }
@@ -198,7 +221,11 @@ export function HireEmployeeDialog({
       let txHash: Hex;
       try {
         txHash = await executeValidatorTransaction({ validator, data });
-      } catch {
+      } catch (error) {
+        const broadcastHash = transactionHashFromError(error);
+        if (mode.kind === "create" && privateKey && broadcastHash) {
+          setPendingCreateBroadcastHash(broadcastHash);
+        }
         setSubmitting(false);
         return;
       }
@@ -233,6 +260,7 @@ export function HireEmployeeDialog({
       setSubmitting(false);
 
       if (mode.kind === "create" && privateKey) {
+        setPendingCreateBroadcastHash(undefined);
         setDraft((current) => ({ ...current, signer }));
         setRevealedPrivateKey(privateKey);
       } else if (!postTransactionError) {
@@ -247,6 +275,7 @@ export function HireEmployeeDialog({
       mode,
       onComplete,
       onOpenChange,
+      pendingCreatePrivateKey,
       validationError,
       validator,
     ],
@@ -281,6 +310,12 @@ export function HireEmployeeDialog({
 
         {destructiveMessage ? <DestructivePanel message={destructiveMessage} /> : null}
         {explorerHref ? <ExplorerLink href={explorerHref} /> : null}
+        {hasPendingBroadcastKey && pendingCreateBroadcastHash ? (
+          <PendingBroadcastKeyWarning
+            hash={pendingCreateBroadcastHash}
+            onDiscard={discardGeneratedKey}
+          />
+        ) : null}
 
         {revealedPrivateKey ? (
           <PrivateKeyReveal
@@ -456,14 +491,26 @@ export function HireEmployeeDialog({
             </section>
 
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => handleOpenChange(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
+              {hasPendingBroadcastKey ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={discardGeneratedKey}
+                  disabled={isSubmitting}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Discard generated key
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => handleOpenChange(false)}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+              )}
               <Button type="submit" disabled={Boolean(validationError) || isSubmitting}>
                 {mode.kind === "create" ? (
                   <UserPlus className="h-4 w-4" />
@@ -518,6 +565,43 @@ function PrivateKeyReveal({
         <Button type="button" onClick={onClose}>
           <ShieldCheck className="h-4 w-4" />
           I saved it
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function PendingBroadcastKeyWarning({
+  hash,
+  onDiscard,
+}: {
+  hash: Hex;
+  onDiscard(): void;
+}) {
+  return (
+    <section className="space-y-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+        <div className="space-y-1">
+          <h3 className="font-semibold">Transaction broadcast, confirmation unknown</h3>
+          <p className="text-amber-100/80">
+            Keep this dialog open and retry to reuse the same generated employee key. Closing is
+            blocked until the transaction confirms or you discard the generated key.
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <a
+          href={`${BASE_SEPOLIA_EXPLORER_TX}/${hash}`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 text-amber-100 underline-offset-4 hover:underline"
+        >
+          View broadcast transaction <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+        <Button type="button" variant="destructive" size="sm" onClick={onDiscard}>
+          <Trash2 className="h-4 w-4" />
+          Discard generated key
         </Button>
       </div>
     </section>
@@ -696,6 +780,8 @@ function draftFromMode(mode: HireEmployeeDialogProps["mode"]): PermissionDraft {
     return {
       ...emptyDraft(mode.signer),
       name: mode.initialName,
+      contractAccess: "whitelist",
+      callRules: [],
     };
   }
 
@@ -792,6 +878,19 @@ function firstPermissionConfigError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   const normalized = message.replace(/^Cannot build permission config:\s*/i, "");
   return normalized.match(/^.*?\.(?:\s|$)/)?.[0].trim() ?? normalized;
+}
+
+function transactionHashFromError(error: unknown): Hex | undefined {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "hash" in error &&
+    typeof error.hash === "string" &&
+    /^0x[0-9a-fA-F]{64}$/.test(error.hash)
+  ) {
+    return error.hash as Hex;
+  }
+  return undefined;
 }
 
 function isSubmittingStep(step: string): boolean {
