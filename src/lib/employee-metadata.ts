@@ -1,6 +1,7 @@
 import { getAddress, type Address, type Hex } from "viem";
 
 export const EMPLOYEE_METADATA_STORAGE_PREFIX = "agentforce:employee-metadata:v1";
+const TRANSACTION_HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 
 export type EmployeeMetadata = {
   signer: Address;
@@ -80,11 +81,16 @@ export function mergeEmployeeMetadata(
   const normalizedNext = normalizeEmployeeMetadata(next);
   const key = normalizedNext.signer.toLowerCase();
   const existing = index.get(key);
-
-  index.set(key, {
+  const merged: EmployeeMetadata = {
     ...normalizedNext,
     createdAt: existing?.createdAt ?? normalizedNext.createdAt,
-  });
+  };
+
+  preserveExistingTxHash(merged, existing, "createTxHash");
+  preserveExistingTxHash(merged, existing, "updateTxHash");
+  preserveExistingTxHash(merged, existing, "revokeTxHash");
+
+  index.set(key, merged);
 
   return Array.from(index.values());
 }
@@ -120,9 +126,15 @@ function normalizeEmployeeMetadata(metadata: EmployeeMetadata): EmployeeMetadata
     updatedAt: metadata.updatedAt,
   };
 
-  if (metadata.createTxHash !== undefined) normalized.createTxHash = metadata.createTxHash;
-  if (metadata.updateTxHash !== undefined) normalized.updateTxHash = metadata.updateTxHash;
-  if (metadata.revokeTxHash !== undefined) normalized.revokeTxHash = metadata.revokeTxHash;
+  if (metadata.createTxHash !== undefined) {
+    normalized.createTxHash = normalizeTransactionHash(metadata.createTxHash);
+  }
+  if (metadata.updateTxHash !== undefined) {
+    normalized.updateTxHash = normalizeTransactionHash(metadata.updateTxHash);
+  }
+  if (metadata.revokeTxHash !== undefined) {
+    normalized.revokeTxHash = normalizeTransactionHash(metadata.revokeTxHash);
+  }
 
   return normalized;
 }
@@ -135,9 +147,9 @@ function parseEmployeeMetadataItem(item: unknown): EmployeeMetadata | undefined 
     typeof item.avatarSeed !== "string" ||
     typeof item.createdAt !== "string" ||
     typeof item.updatedAt !== "string" ||
-    !isOptionalHex(item.createTxHash) ||
-    !isOptionalHex(item.updateTxHash) ||
-    !isOptionalHex(item.revokeTxHash)
+    !isOptionalTransactionHash(item.createTxHash) ||
+    !isOptionalTransactionHash(item.updateTxHash) ||
+    !isOptionalTransactionHash(item.revokeTxHash)
   ) {
     return undefined;
   }
@@ -162,6 +174,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isOptionalHex(value: unknown): value is Hex | undefined {
-  return value === undefined || (typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value));
+function preserveExistingTxHash(
+  metadata: EmployeeMetadata,
+  existing: EmployeeMetadata | undefined,
+  field: "createTxHash" | "updateTxHash" | "revokeTxHash",
+): void {
+  if (metadata[field] === undefined && existing?.[field] !== undefined) {
+    metadata[field] = existing[field];
+  }
+}
+
+function normalizeTransactionHash(value: Hex): Hex {
+  if (!TRANSACTION_HASH_PATTERN.test(value)) {
+    throw new Error("Expected 32-byte transaction hash");
+  }
+  return value;
+}
+
+function isOptionalTransactionHash(value: unknown): value is Hex | undefined {
+  return value === undefined || (typeof value === "string" && TRANSACTION_HASH_PATTERN.test(value));
 }

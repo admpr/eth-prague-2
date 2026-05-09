@@ -15,6 +15,10 @@ import {
 const account = "0x1111111111111111111111111111111111111111";
 const validator = "0x2222222222222222222222222222222222222222";
 const signer = "0x3333333333333333333333333333333333333333";
+const createTxHash = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as Hex;
+const updateTxHash = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" as Hex;
+const replacementCreateTxHash =
+  "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" as Hex;
 
 test("builds metadata key scoped to chain, account, and validator", () => {
   assert.equal(
@@ -32,10 +36,10 @@ test("serializes metadata as a stable JSON array", () => {
         avatarSeed: signer,
         createdAt: "2026-05-09T10:00:00.000Z",
         updatedAt: "2026-05-09T11:00:00.000Z",
-        createTxHash: "0xabc",
+        createTxHash,
       },
     ]),
-    '[{"signer":"0x3333333333333333333333333333333333333333","name":"Employee One","avatarSeed":"0x3333333333333333333333333333333333333333","createdAt":"2026-05-09T10:00:00.000Z","updatedAt":"2026-05-09T11:00:00.000Z","createTxHash":"0xabc"}]',
+    '[{"signer":"0x3333333333333333333333333333333333333333","name":"Employee One","avatarSeed":"0x3333333333333333333333333333333333333333","createdAt":"2026-05-09T10:00:00.000Z","updatedAt":"2026-05-09T11:00:00.000Z","createTxHash":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]',
   );
 });
 
@@ -70,14 +74,65 @@ test("merges metadata by signer and preserves createdAt", () => {
       avatarSeed: signer,
       createdAt: "2026-05-09T11:00:00.000Z",
       updatedAt: "2026-05-09T11:00:00.000Z",
-      updateTxHash: "0xdef",
+      updateTxHash,
     },
   );
 
   assert.equal(merged.length, 1);
   assert.equal(merged[0].name, "New name");
   assert.equal(merged[0].createdAt, "2026-05-09T10:00:00.000Z");
-  assert.equal(merged[0].updateTxHash, "0xdef");
+  assert.equal(merged[0].updateTxHash, updateTxHash);
+});
+
+test("merges transaction hashes without dropping omitted existing hashes", () => {
+  const merged = mergeEmployeeMetadata(
+    [
+      {
+        signer,
+        name: "Old name",
+        avatarSeed: signer,
+        createdAt: "2026-05-09T10:00:00.000Z",
+        updatedAt: "2026-05-09T10:00:00.000Z",
+        createTxHash,
+      },
+    ],
+    {
+      signer,
+      name: "New name",
+      avatarSeed: signer,
+      createdAt: "2026-05-09T11:00:00.000Z",
+      updatedAt: "2026-05-09T11:00:00.000Z",
+      updateTxHash,
+    },
+  );
+
+  assert.equal(merged[0].createTxHash, createTxHash);
+  assert.equal(merged[0].updateTxHash, updateTxHash);
+});
+
+test("merges transaction hashes with incoming hashes overriding existing hashes", () => {
+  const merged = mergeEmployeeMetadata(
+    [
+      {
+        signer,
+        name: "Old name",
+        avatarSeed: signer,
+        createdAt: "2026-05-09T10:00:00.000Z",
+        updatedAt: "2026-05-09T10:00:00.000Z",
+        createTxHash,
+      },
+    ],
+    {
+      signer,
+      name: "New name",
+      avatarSeed: signer,
+      createdAt: "2026-05-09T11:00:00.000Z",
+      updatedAt: "2026-05-09T11:00:00.000Z",
+      createTxHash: replacementCreateTxHash,
+    },
+  );
+
+  assert.equal(merged[0].createTxHash, replacementCreateTxHash);
 });
 
 test("parses missing, invalid, non-array, and malformed metadata as empty", () => {
@@ -85,6 +140,19 @@ test("parses missing, invalid, non-array, and malformed metadata as empty", () =
   assert.deepEqual(parseEmployeeMetadata("not-json"), []);
   assert.deepEqual(parseEmployeeMetadata("{}"), []);
   assert.deepEqual(parseEmployeeMetadata('[{"signer":"not-an-address"}]'), []);
+});
+
+test("parses metadata with short transaction hashes as empty", () => {
+  const metadata = {
+    signer,
+    name: "Employee One",
+    avatarSeed: signer,
+    createdAt: "2026-05-09T10:00:00.000Z",
+    updatedAt: "2026-05-09T10:00:00.000Z",
+  };
+
+  assert.deepEqual(parseEmployeeMetadata(JSON.stringify([{ ...metadata, createTxHash: "0xabc" }])), []);
+  assert.deepEqual(parseEmployeeMetadata(JSON.stringify([{ ...metadata, updateTxHash: "0x" }])), []);
 });
 
 test("upserts metadata through StorageLike", () => {
@@ -110,7 +178,7 @@ test("upserts metadata through StorageLike", () => {
     avatarSeed: "new-seed",
     createdAt: "2026-05-09T11:00:00.000Z",
     updatedAt: "2026-05-09T11:00:00.000Z",
-    updateTxHash: "0xdef" as Hex,
+    updateTxHash,
   });
 
   assert.equal(merged.length, 1);
@@ -121,7 +189,7 @@ test("upserts metadata through StorageLike", () => {
     {
       key,
       value:
-        '[{"signer":"0x3333333333333333333333333333333333333333","name":"New name","avatarSeed":"new-seed","createdAt":"2026-05-09T10:00:00.000Z","updatedAt":"2026-05-09T11:00:00.000Z","updateTxHash":"0xdef"}]',
+        '[{"signer":"0x3333333333333333333333333333333333333333","name":"New name","avatarSeed":"new-seed","createdAt":"2026-05-09T10:00:00.000Z","updatedAt":"2026-05-09T11:00:00.000Z","updateTxHash":"0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]',
     },
   ]);
 });
