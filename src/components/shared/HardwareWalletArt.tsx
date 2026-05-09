@@ -26,22 +26,40 @@ export function HardwareWalletArt({ className }: { className?: string }) {
             <div className="absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-white/[0.04]" />
             {/* Screen */}
             <div className="relative h-[60%] w-full overflow-hidden rounded-[1.4rem] bg-black">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(236,72,153,0.16),transparent_42%)]" />
               <div className="absolute left-2 right-2 top-2 flex justify-between text-[0.5rem] font-mono uppercase tracking-[0.22em] text-white/40">
                 <span>FW.4.2.1</span>
-                <span>EIP-7702</span>
+                <span>TX REVIEW</span>
               </div>
-              <div className="relative flex h-full flex-col justify-center px-4 pb-4 pt-9 text-white">
-                <div className="font-mono text-[0.5rem] tracking-[0.22em] text-white/45">
-                  AUTHORIZE DELEGATION
+              <div className="relative flex h-full flex-col px-4 pb-4 pt-9 text-white">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <div>
+                    <div className="font-mono text-[0.47rem] uppercase tracking-[0.22em] text-white/45">
+                      ADD AGENT
+                    </div>
+                    <div className="mt-1 font-serif italic text-[1.05rem] leading-none text-white">
+                      Name: Robert
+                    </div>
+                  </div>
+                  <span className="h-7 w-7 rounded-full border border-primary/35 bg-primary/10 text-center font-mono text-[0.72rem] leading-7 text-primary">
+                    R
+                  </span>
                 </div>
-                <div className="mt-1.5 font-serif italic text-[1.6rem] leading-none text-white">
-                  Smart EOA
+
+                <div className="mt-3 rounded-md border border-white/10 bg-white/[0.035] p-2.5 shadow-[0_0_30px_-18px_rgba(236,72,153,0.8)]">
+                  <div className="font-mono text-[0.45rem] uppercase tracking-[0.2em] text-white/45">
+                    Permission
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-1.5 font-mono text-[0.58rem] leading-snug text-primary">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(236,72,153,0.9)]" />
+                    <span>Spend up to $500/day</span>
+                  </div>
                 </div>
-                <div className="mt-2 font-mono text-[0.6rem] text-primary">0xef01·00…d4f9</div>
-                <div className="mt-auto flex items-center gap-1.5 pt-3 text-[0.5rem]">
+
+                <div className="mt-auto flex items-center justify-center gap-1.5 rounded-sm border border-emerald-400/20 bg-emerald-400/10 px-2 py-1.5 text-[0.48rem]">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  <span className="font-mono uppercase tracking-[0.22em] text-white/60">
-                    Awaiting confirmation
+                  <span className="font-mono uppercase tracking-[0.18em] text-emerald-200/80">
+                    Sign transaction
                   </span>
                 </div>
               </div>
@@ -53,7 +71,7 @@ export function HardwareWalletArt({ className }: { className?: string }) {
               ))}
             </div>
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 font-mono text-[0.45rem] uppercase tracking-[0.4em] text-white/25">
-              secure element
+              hardware wallet
             </div>
           </div>
         </div>
