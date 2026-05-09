@@ -22,7 +22,9 @@
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "@radix-ui/react-dialog": "^1.1.2",
-    "@radix-ui/react-slot": "^1.1.0"
+    "@radix-ui/react-slot": "^1.1.0",
+    "@dicebear/core": "^9.4.2",
+    "@dicebear/collection": "^9.4.2"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
