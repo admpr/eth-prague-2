@@ -46,8 +46,8 @@ later become shortcuts into this same flow.
 3. The modal collects agent name and permission settings.
 4. On submit, the browser generates a fresh secp256k1 private key locally.
 5. The app derives the public signer address.
-6. The app encodes a smart-account execution that calls
-   `setPermission(PermissionConfig)` on the validator for that signer.
+6. The app encodes `setPermission(PermissionConfig)` on the validator for that
+   signer.
 7. The hardware wallet signs the management transaction immediately.
 8. The app broadcasts the signed transaction and waits for confirmation.
 9. After confirmation, the app reveals the private key exactly once.
@@ -200,12 +200,10 @@ analytics, logs, or durable application state.
 ## Transaction Mechanics
 
 The implementation should add a small permission library around the validator
-ABI and the account execution ABI:
+ABI:
 
 - encode validator `setPermission(PermissionConfig)` calls
 - encode validator `removePermission(address)` calls
-- wrap validator calls in the smart account's execution calldata so the
-  validator sees `msg.sender` as the smart account
 - read and normalize contract permission state
 - convert UI amounts to token units
 - convert validator limits back to display amounts
@@ -217,19 +215,22 @@ pattern:
 
 1. discover/connect Firefly hardware wallet
 2. verify connected account matches the authority address
-3. estimate gas for the transaction sent to the smart account
+3. estimate gas for the transaction sent from the authority address to the
+   validator
 4. request `ffx_signTransaction`
 5. serialize the signed transaction
 6. broadcast through `/api/broadcast-raw-transaction`
 7. wait for receipt
 8. refresh contract state
 
-For hire and update, the transaction is sent to the delegated account address.
-The account execution target is the `AgentPermissionValidator`, and the inner
-calldata is `setPermission(PermissionConfig)`. For revoke, the same pattern is
-used with `removePermission(signer)`. The app must not send these calls directly
-from the EOA to the validator, because the validator stores permissions under
-`msg.sender`.
+For hire and update, the transaction target is the `AgentPermissionValidator`
+and the calldata is `setPermission(PermissionConfig)`. For revoke, the same
+pattern is used with `removePermission(signer)`.
+
+Because this project uses EIP-7702, the hardware wallet address and delegated
+smart account address are the same address. A normal hardware-wallet-signed
+transaction from that address to the validator gives the validator the expected
+`msg.sender`, which is the account address under which the module was installed.
 
 ## One-Time Private Key Reveal
 
