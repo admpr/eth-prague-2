@@ -48,7 +48,7 @@ type EmployeeManagerProps = {
 
 type EmployeeStatus = {
   label: string;
-  variant: "muted" | "success";
+  variant: "muted" | "primary" | "success";
 };
 
 export function EmployeeManager({
@@ -473,9 +473,12 @@ function TransactionLink({ href }: { href: string }) {
 }
 
 function employeeStatus(employee: AgentEmployee): EmployeeStatus {
+  if (!employee.active) return { label: "Inactive", variant: "muted" };
+  if (employee.validAfter !== 0 && Math.floor(Date.now() / 1000) < employee.validAfter) {
+    return { label: "Scheduled", variant: "primary" };
+  }
   if (employee.expired) return { label: "Expired", variant: "muted" };
-  if (employee.active) return { label: "Active", variant: "success" };
-  return { label: "Inactive", variant: "muted" };
+  return { label: "Active", variant: "success" };
 }
 
 function isSubmittingStep(step: string): boolean {

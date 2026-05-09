@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatEther, formatUnits, getAddress, isAddress, type Address, type Hex } from "viem";
+import {
+  erc20Abi,
+  formatEther,
+  formatUnits,
+  getAddress,
+  isAddress,
+  type Address,
+  type Hex,
+} from "viem";
 import {
   AGENT_PERMISSION_VALIDATOR_ABI,
   BASE_SEPOLIA_TOKEN_PRESETS,
@@ -179,6 +187,19 @@ async function readEmployees(account: Address, validator: Address): Promise<Agen
       const validAfterSeconds = uint48ToNumber(validAfter);
       const validUntilSeconds = uint48ToNumber(validUntil);
       const metadata = metadataIndex.get(normalizedSigner.toLowerCase());
+      const normalizedTokenLimits = await Promise.all(
+        tokenLimits.map(async (tokenLimit) => {
+          const token = getAddress(tokenLimit.token);
+          const tokenMetadata = await getTokenMetadata(token);
+          return {
+            token,
+            symbol: tokenMetadata.symbol,
+            decimals: tokenMetadata.decimals,
+            limit: normalizeLimit(tokenLimit.limit),
+            enabled: tokenLimit.enabled,
+          };
+        }),
+      );
 
       return {
         signer: normalizedSigner,
@@ -196,17 +217,7 @@ async function readEmployees(account: Address, validator: Address): Promise<Agen
           selector: rule.selector as Hex,
           allowAnySelector: rule.allowAnySelector,
         })),
-        tokenLimits: tokenLimits.map((tokenLimit) => {
-          const token = getAddress(tokenLimit.token);
-          const metadata = getTokenMetadata(token);
-          return {
-            token,
-            symbol: metadata.symbol,
-            decimals: metadata.decimals,
-            limit: normalizeLimit(tokenLimit.limit),
-            enabled: tokenLimit.enabled,
-          };
-        }),
+        tokenLimits: normalizedTokenLimits,
       };
     }),
   );
@@ -238,14 +249,50 @@ function normalizeLimit(limit: RawOnchainLimit): OnchainLimit {
   };
 }
 
-function getTokenMetadata(token: Address): { symbol: string; decimals: number } {
+async function getTokenMetadata(token: Address): Promise<{ symbol: string; decimals: number }> {
   const preset = BASE_SEPOLIA_TOKEN_PRESETS.find(
     (item) => isAddress(item.address) && getAddress(item.address) === token,
   );
+  if (preset) {
+    return {
+      symbol: preset.symbol,
+      decimals: preset.decimals,
+    };
+  }
+
+  const [symbol, decimals] = await Promise.all([
+    baseSepoliaPublicClient
+      .readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: "symbol",
+      })
+      .catch(() => "ERC20"),
+    baseSepoliaPublicClient
+      .readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: "decimals",
+      })
+      .catch(() => 18),
+  ]);
+
   return {
-    symbol: preset?.symbol ?? "ERC20",
-    decimals: preset?.decimals ?? 18,
+    symbol: normalizeTokenSymbol(symbol),
+    decimals: normalizeTokenDecimals(decimals),
   };
+}
+
+function normalizeTokenSymbol(value: unknown): string {
+  if (typeof value !== "string") return "ERC20";
+  const symbol = value.trim();
+  return symbol ? symbol : "ERC20";
+}
+
+function normalizeTokenDecimals(value: unknown): number {
+  const decimals = typeof value === "bigint" ? Number(value) : value;
+  if (typeof decimals !== "number" || !Number.isInteger(decimals)) return 18;
+  return decimals >= 0 && decimals <= 18 ? decimals : 18;
 }
 
 function normalizeAddress(value: string | undefined): Address | undefined {

@@ -16,7 +16,7 @@ export function PermissionSummary({ employee }: { employee: AgentEmployee }) {
     ? `${formatLimitAmount(employee.nativeLimit.amount, 18)} ETH / ${periodLabel(
         employee.nativeLimit.period,
       )}`
-    : "No ETH limit";
+    : "ETH spend disabled";
 
   return (
     <div className="space-y-3">
@@ -60,7 +60,7 @@ export function PermissionSummary({ employee }: { employee: AgentEmployee }) {
             />
           ))
         ) : (
-          <SummaryRow label="Tokens" value="No token limits" />
+          <SummaryRow label="Tokens" value="No ERC20 spend budgets" />
         )}
       </dl>
     </div>

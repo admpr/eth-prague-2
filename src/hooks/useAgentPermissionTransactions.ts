@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getAddress, isAddress, type Address, type Hex } from "viem";
+import { getAddress, isAddress, keccak256, type Address, type Hex } from "viem";
 import { BASE_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_EXPLORER_TX } from "@/lib/config";
 import { FireflyClient } from "@/lib/firefly/firefly-client";
 import { bytesToHex } from "@/lib/firefly/hex";
@@ -140,7 +140,8 @@ export function useAgentPermissionTransactions(authority?: string) {
           fromFireflyTransactionSignature(rawSignature),
         );
 
-        setTxState(operationId, { step: "broadcasting" });
+        knownHash = keccak256(rawTransaction);
+        setTxState(operationId, { step: "broadcasting", hash: knownHash });
         const response = await fetch("/api/broadcast-raw-transaction", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -153,8 +154,10 @@ export function useAgentPermissionTransactions(authority?: string) {
           throw new Error(readBroadcastError(payload) ?? `Broadcast failed (HTTP ${response.status})`);
         }
 
-        knownHash = readBroadcastHash(payload);
-        setTxState(operationId, { step: "broadcasting", hash: knownHash });
+        const broadcastHash = readBroadcastHash(payload);
+        if (broadcastHash && broadcastHash.toLowerCase() !== knownHash.toLowerCase()) {
+          throw new Error("Broadcast returned an unexpected transaction hash");
+        }
 
         const receipt = await baseSepoliaPublicClient.waitForTransactionReceipt({
           hash: knownHash,
@@ -211,11 +214,11 @@ function readBroadcastError(payload: unknown): string | undefined {
   return payload.error;
 }
 
-function readBroadcastHash(payload: unknown): Hex {
+function readBroadcastHash(payload: unknown): Hex | undefined {
   if (isRecord(payload) && typeof payload.hash === "string" && payload.hash.startsWith("0x")) {
     return payload.hash as Hex;
   }
-  throw new Error("Broadcast did not return a transaction hash");
+  return undefined;
 }
 
 function withTransactionHash(error: unknown, hash: Hex | undefined): PermissionTransactionError {

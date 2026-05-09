@@ -18,9 +18,15 @@ export function WorkforceDashboard({ authority }: WorkforceDashboardProps) {
   }, [authority]);
   const { employees, loading, error, validatorAddress, refresh } =
     useAgentPermissionState(normalizedAuthority);
-  const activeEmployees = employees.filter(
-    (employee) => employee.active && !employee.expired,
-  ).length;
+  const activeEmployees = useMemo(() => {
+    const now = Math.floor(Date.now() / 1000);
+    return employees.filter(
+      (employee) =>
+        employee.active &&
+        !employee.expired &&
+        (employee.validAfter === 0 || now >= employee.validAfter),
+    ).length;
+  }, [employees]);
 
   return (
     <>
