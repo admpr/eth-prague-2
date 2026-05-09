@@ -12,7 +12,13 @@ type AgentAvatarProps = {
 
 export function AgentAvatar({ seed, className }: AgentAvatarProps) {
   const src = useMemo(
-    () => createAvatar(identicon, { seed: seed.toLowerCase() }).toDataUri(),
+    () =>
+      createAvatar(identicon, {
+        seed: seed.toLowerCase(),
+        size: 96,
+        backgroundColor: ["2dd4bf", "818cf8", "f472b6", "34d399"],
+        radius: 12,
+      }).toDataUri(),
     [seed],
   );
 

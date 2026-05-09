@@ -19,7 +19,10 @@ export function PermissionSummary({ employee }: { employee: AgentEmployee }) {
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
         {employee.expired ? (
-          <Badge variant="muted">Expired</Badge>
+          <Badge variant="muted">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Expired
+          </Badge>
         ) : (
           <Badge variant="success">
             <ShieldCheck className="h-3.5 w-3.5" />
