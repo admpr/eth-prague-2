@@ -10,6 +10,7 @@ import {
   buildRemovePermissionCalldata,
   buildSetPermissionCalldata,
   employeeSnapshotToDraft,
+  formatLimitPeriodLabel,
   limitPeriodToSeconds,
   normalizeFunctionSelector,
   parseLimitAmount,
@@ -73,6 +74,13 @@ test("converts seconds into limit period drafts", () => {
   assert.deepEqual(secondsToLimitPeriod(0), { kind: "fixed" });
   assert.deepEqual(secondsToLimitPeriod(3600), { kind: "hourly" });
   assert.deepEqual(secondsToLimitPeriod(123), { kind: "custom", seconds: 123 });
+});
+
+test("formats custom reset periods as readable durations", () => {
+  assert.equal(formatLimitPeriodLabel(0), "fixed");
+  assert.equal(formatLimitPeriodLabel(3600), "hour");
+  assert.equal(formatLimitPeriodLabel(2592000), "30 days");
+  assert.equal(formatLimitPeriodLabel(90), "90 seconds");
 });
 
 test("rejects invalid custom reset periods", () => {

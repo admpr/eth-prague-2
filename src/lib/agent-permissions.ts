@@ -251,6 +251,26 @@ export function secondsToLimitPeriod(seconds: number): LimitPeriod {
   return { kind: "custom", seconds };
 }
 
+export function formatLimitPeriodLabel(period: number): string {
+  if (period === 0) return "fixed";
+
+  const units = [
+    { seconds: 604800, singular: "week", plural: "weeks" },
+    { seconds: 86400, singular: "day", plural: "days" },
+    { seconds: 3600, singular: "hour", plural: "hours" },
+    { seconds: 60, singular: "minute", plural: "minutes" },
+  ] as const;
+
+  for (const unit of units) {
+    if (period >= unit.seconds && period % unit.seconds === 0) {
+      const count = period / unit.seconds;
+      return count === 1 ? unit.singular : `${count} ${unit.plural}`;
+    }
+  }
+
+  return period === 1 ? "second" : `${period} seconds`;
+}
+
 export function formatDateTimeLocal(unixSeconds: number): string {
   if (unixSeconds === 0) return "";
 

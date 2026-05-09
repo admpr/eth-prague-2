@@ -3,6 +3,7 @@
 import { type ReactNode } from "react";
 import { Coins, Infinity, LockKeyhole, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatLimitPeriodLabel } from "@/lib/agent-permissions";
 import {
   formatLimitAmount,
   type AgentEmployee,
@@ -13,7 +14,7 @@ export function PermissionSummary({ employee }: { employee: AgentEmployee }) {
   const status = statusBadge(employee, now);
   const enabledTokenLimits = employee.tokenLimits.filter((limit) => limit.enabled);
   const nativeLimit = employee.nativeLimitEnabled
-    ? `${formatLimitAmount(employee.nativeLimit.amount, 18)} ETH / ${periodLabel(
+    ? `${formatLimitAmount(employee.nativeLimit.amount, 18)} ETH / ${formatLimitPeriodLabel(
         employee.nativeLimit.period,
       )}`
     : "ETH spend disabled";
@@ -54,7 +55,7 @@ export function PermissionSummary({ employee }: { employee: AgentEmployee }) {
             <SummaryRow
               key={limit.token}
               label={limit.symbol}
-              value={`${formatLimitAmount(limit.limit.amount, limit.decimals)} / ${periodLabel(
+              value={`${formatLimitAmount(limit.limit.amount, limit.decimals)} / ${formatLimitPeriodLabel(
                 limit.limit.period,
               )}`}
             />
@@ -97,14 +98,6 @@ function SummaryRow({
       <dd className="min-w-0 truncate text-right text-sm font-medium">{value}</dd>
     </div>
   );
-}
-
-function periodLabel(period: number): string {
-  if (period === 0) return "fixed";
-  if (period === 3600) return "hour";
-  if (period === 86400) return "day";
-  if (period === 604800) return "week";
-  return `${period}s`;
 }
 
 function validityLabel(employee: AgentEmployee): string {
