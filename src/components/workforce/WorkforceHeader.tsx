@@ -10,11 +10,11 @@ import { formatEth, formatUsdc, getAccountBalances } from "@/lib/balances";
 
 type WorkforceHeaderProps = {
   authority?: string;
+  activeEmployees?: number;
 };
 
-export function WorkforceHeader({ authority }: WorkforceHeaderProps) {
+export function WorkforceHeader({ authority, activeEmployees = 0 }: WorkforceHeaderProps) {
   const [balances, setBalances] = useState<{ eth: string; usdc: string } | null>(null);
-  const activeEmployees = 0;
 
   useEffect(() => {
     if (!authority) return;

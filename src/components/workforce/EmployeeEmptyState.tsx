@@ -4,7 +4,11 @@ import { motion } from "framer-motion";
 import { Plus, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function EmployeeEmptyState() {
+type EmployeeEmptyStateProps = {
+  onHire: () => void;
+};
+
+export function EmployeeEmptyState({ onHire }: EmployeeEmptyStateProps) {
   return (
     <motion.section
       initial={{ opacity: 0, y: 16 }}
@@ -35,12 +39,9 @@ export function EmployeeEmptyState() {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button size="lg" disabled>
+          <Button type="button" size="lg" onClick={onHire}>
             <Plus className="h-4 w-4" />
             Hire employee
-            <span className="ml-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[0.6rem] uppercase tracking-wide text-accent">
-              Coming next
-            </span>
           </Button>
           <Button variant="ghost" size="lg" disabled>
             Import policy preset
