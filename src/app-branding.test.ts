@@ -22,3 +22,52 @@ test("uses Wallexa as the visible application name", () => {
 
   assert.match(combinedSource, /Wallexa/);
 });
+
+test("uses the AI-agent hardware wallet homepage headline", () => {
+  const heroSource = readFileSync(
+    join(process.cwd(), "src/components/landing/Hero.tsx"),
+    "utf8",
+  );
+  const layoutSource = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
+
+  assert.match(heroSource, /Hardware wallet for[\s\S]*AI agents\./);
+  assert.match(
+    heroSource,
+    /<span className="[^"]*editorial[^"]*text-\[1\.08em\][^"]*text-accent[^"]*">AI agents\.<\/span>/,
+  );
+  assert.match(layoutSource, /Hardware wallet for AI agents/);
+  assert.doesNotMatch(heroSource, /The wallet/);
+  assert.doesNotMatch(heroSource, /The hardware wallet/);
+  assert.doesNotMatch(layoutSource, /The hardware wallet/);
+  assert.doesNotMatch(heroSource, /for your/);
+  assert.doesNotMatch(layoutSource, /for your/);
+  assert.doesNotMatch(heroSource, /Hire AI employees/);
+  assert.doesNotMatch(layoutSource, /Hire AI employees/);
+});
+
+test("labels agent permission management as access keys", () => {
+  const source = readFileSync(
+    join(process.cwd(), "src/components/workforce/EmployeeManager.tsx"),
+    "utf8",
+  );
+
+  assert.match(source, /Access keys/);
+  assert.match(source, /Manage scoped agent keys for this smart account\./);
+  assert.match(source, />\s*Add key\s*</);
+  assert.doesNotMatch(source, /font-display[^>]*>Access keys</);
+  assert.doesNotMatch(source, />Employees</);
+  assert.doesNotMatch(source, />\s*Hire employee\s*</);
+  assert.doesNotMatch(source, /Manage scoped agent signers for this smart account\./);
+});
+
+test("describes the workforce header with general access-key language", () => {
+  const source = readFileSync(
+    join(process.cwd(), "src/components/workforce/WorkforceHeader.tsx"),
+    "utf8",
+  );
+
+  assert.match(source, /Welcome to your <span className="editorial text-accent">workforce\.<\/span>/);
+  assert.match(source, /Create scoped access keys, set their budgets, and\s+revoke them with a click\./);
+  assert.doesNotMatch(source, /Hire AI employees/);
+  assert.doesNotMatch(source, /Welcome to your <span className="editorial text-accent">smart account\.<\/span>/);
+});

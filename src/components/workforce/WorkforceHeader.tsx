@@ -53,8 +53,8 @@ export function WorkforceHeader({ authority, activeEmployees = 0 }: WorkforceHea
               Welcome to your <span className="editorial text-accent">workforce.</span>
             </h1>
             <p className="max-w-md text-muted-foreground">
-              Your wallet is now a smart account. Hire AI employees, fund their budgets, and revoke
-              them with a click.
+              Your wallet is now a smart account. Create scoped access keys, set their budgets, and
+              revoke them with a click.
             </p>
           </div>
 

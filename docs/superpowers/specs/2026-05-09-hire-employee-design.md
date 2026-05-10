@@ -84,7 +84,7 @@ Maps to `tokenLimits[]`. Each row includes token address, display symbol,
 decimals, amount, and reset period. The first preset tokens are:
 
 - USDC on Base Sepolia:
-  `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+  `0xe306beEd0166982e116B8eC40624E93a483D2BaA`
 - WETH9 on Base Sepolia:
   `0x4200000000000000000000000000000000000006`
 - Custom ERC20

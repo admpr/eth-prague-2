@@ -26,7 +26,7 @@ const STEPS: StepDef[] = [
   { id: "awaitingDevice", label: "Approve on your hardware wallet", hint: "Confirm the EIP-7702 authorization on the device screen.", Icon: Cpu },
   { id: "verifying", label: "Verifying signature", hint: "Recovering the signer to make sure it matches your hardware wallet.", Icon: ShieldCheck },
   { id: "broadcasting", label: "Broadcasting on Base Sepolia", hint: "Submitting the type-4 transaction and waiting for confirmation.", Icon: Sparkles },
-  { id: "confirmed", label: "Wallet delegated", hint: "Your EOA now runs the smart-account code path.", Icon: CheckCircle2 },
+  { id: "confirmed", label: "Wallet is agent-ready", hint: "You can now issue scoped agent keys from this address.", Icon: CheckCircle2 },
 ];
 
 const STEP_ORDER: Record<StepDef["id"], number> = STEPS.reduce(
@@ -94,8 +94,8 @@ export function ProgressModal({
               {state.step === "error"
                 ? "Something went wrong"
                 : state.step === "confirmed"
-                  ? "Delegation activated"
-                  : "Activating delegation"}
+                  ? "Wallet is agent-ready"
+                  : "Making wallet agent-ready"}
             </DialogTitle>
             <DialogDescription>
               {state.step === "error"

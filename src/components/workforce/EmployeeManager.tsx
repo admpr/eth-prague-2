@@ -285,9 +285,9 @@ export function EmployeeManager({
         <div className="space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 className="font-display text-2xl font-semibold tracking-tight">Employees</h2>
+              <h2 className="text-2xl font-semibold tracking-tight">Access keys</h2>
               <p className="text-sm text-muted-foreground">
-                Manage scoped agent signers for this smart account.
+                Manage scoped agent keys for this smart account.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -302,7 +302,7 @@ export function EmployeeManager({
               </Button>
               <Button type="button" onClick={openBlankCreate}>
                 <UserPlus className="h-4 w-4" />
-                Hire employee
+                Add key
               </Button>
             </div>
           </div>

@@ -10,7 +10,7 @@ import { useFireflyDelegation } from "@/hooks/useFireflyDelegation";
 import { ProgressModal } from "@/components/connect/ProgressModal";
 import { HardwareWalletArt } from "@/components/shared/HardwareWalletArt";
 import { shortAddress } from "@/lib/utils";
-import { isPlaceholderDelegate, DELEGATE_CONTRACT_ADDRESS } from "@/lib/config";
+import { isPlaceholderDelegate } from "@/lib/config";
 
 export function ConnectStage() {
   const router = useRouter();
@@ -125,14 +125,13 @@ export function ConnectStage() {
 
               <Step
                 n={2}
-                title="Sign & activate delegation"
+                title="Make wallet agent-ready"
                 done={state.step === "confirmed"}
                 active={state.step !== "confirmed"}
                 description={
                   <>
-                    Delegating to{" "}
-                    <span className="font-mono">{shortAddress(DELEGATE_CONTRACT_ADDRESS, 8, 6)}</span>{" "}
-                    on Base Sepolia. Approve once on-device, and we'll do the rest.
+                    Your hardware wallet stays in control. One on-device approval upgrades this
+                    address on Base Sepolia so Wallexa can issue scoped agent keys next.
                   </>
                 }
               />
@@ -151,7 +150,7 @@ export function ConnectStage() {
                 }
               >
                 <Sparkles className="h-4 w-4" />
-                Sign & Activate Delegation
+                Sign & Make Agent-Ready
               </Button>
             </>
           ) : null}

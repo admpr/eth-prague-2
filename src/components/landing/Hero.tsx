@@ -35,10 +35,8 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.05 }}
           >
-            Hire AI employees.
-            <br />
-            <span className="editorial text-[1.08em] text-accent">Keep</span>
-            <span className="ml-3">the keys.</span>
+            Hardware wallet for{" "}
+            <span className="editorial text-[1.08em] text-accent">AI agents.</span>
           </motion.h1>
 
           <motion.p
