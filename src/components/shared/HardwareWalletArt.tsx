@@ -37,7 +37,7 @@ export function HardwareWalletArt({ className }: { className?: string }) {
                     <div className="font-mono text-[0.47rem] uppercase tracking-[0.22em] text-white/45">
                       ADD AGENT
                     </div>
-                    <div className="mt-1 font-serif italic text-[1.05rem] leading-none text-white">
+                    <div className="mt-1 text-[1.05rem] font-medium leading-none text-white">
                       Name: Robert
                     </div>
                   </div>

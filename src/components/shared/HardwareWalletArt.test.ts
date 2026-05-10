@@ -15,8 +15,10 @@ test("shows an add-agent signing request on the hardware wallet screen", () => {
 
     assert.match(html, /ADD AGENT/);
     assert.match(html, /Name: Robert/);
+    assert.match(html, /class="[^"]*font-medium[^"]*"[^>]*>\s*Name: Robert/);
     assert.match(html, /Spend up to \$500\/day/);
     assert.match(html, /Sign transaction/);
+    assert.doesNotMatch(html, /class="[^"]*font-serif[^"]*italic[^"]*"[^>]*>\s*Name: Robert/);
     assert.doesNotMatch(html, /AUTHORIZE DELEGATION/);
     assert.doesNotMatch(html, /Smart EOA/);
   } finally {
