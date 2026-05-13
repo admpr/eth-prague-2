@@ -1,4 +1,4 @@
-# Wwallexa
+# Wallexa
 
 Hardware-wallet-rooted permission layer for AI agents. Delegate your Base Sepolia EOA to a smart account in one signature, then issue scoped session keys to agents.
 
